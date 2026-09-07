@@ -1,6 +1,7 @@
 pyTelegramBotAPI
 aiohttp
 opencv-python-headless
-dddocr-beta
+dddocr
 numpy
+
 
