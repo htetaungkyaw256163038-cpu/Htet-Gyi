@@ -6,7 +6,8 @@ import dddocr
 import numpy as np
 from datetime import datetime, timedelta, timezone
 
-TOKEN = 'ဒီနေရာမှာ_သင့်ရဲ့_Bot_Token_အရှည်ကြီးကို_ထည့်ပါ'
+TOKEN =TOKEN = '8851853713:AAHoF5wvoib3F0sH6adR9wCn3buGVuOR3Ww'
+
 _TOKEN = ''
 OWNER = ""
 NAME = ""
