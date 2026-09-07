@@ -6,8 +6,7 @@ import dddocr
 import numpy as np
 from datetime import datetime, timedelta, timezone
 
-
-TOKEN = '8851853713:AAHoF5wvoib3F0sH6adR9wCn3buGVuOR3Ww')
-
+TOKEN = '8851853713:AAHoF5wvoib3F0sH6adR9wCn3buGVuOR3Ww'
+_TOKEN = ''
 OWNER = ""
 NAME = ""
