@@ -6,11 +6,13 @@ import ddddocr
 import numpy as np
 from datetime import datetime, timedelta, timezone
 
-BOT_TOKEN = ''
-GITHUB_TOKEN = ''
-REPO_OWNER = ""
-REPO_NAME = ""
-ADMIN_ID = ""
+# --- BOT CONFIGURATION ---
+BOT_TOKEN = '8982068568:AAEfHFefCkG5PQIvrjIFCL13ZcXdXbNgHcA'
+GITHUB_TOKEN = 'သင့်ရဲ့_GitHub_ဆောက်ထားတဲ့_Token_Key_ဒီမှာထည့်ပါ'
+REPO_OWNER = "htetaungkyaw25163038-cpu"
+REPO_NAME = "Htet-Gyi"
+ADMIN_ID = "သင့်ရဲ့_Telegram_User_ID_နံပါတ်ကို_ဒီမှာထည့်ပါ"
+
 SUCCESS_CODE = asyncio.Queue()
 bot = AsyncTeleBot(BOT_TOKEN)
 user_data = {}
