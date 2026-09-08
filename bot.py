@@ -8,7 +8,7 @@ import os
 import numpy as np
 from datetime import datetime, timedelta
 
-TOKEN = '8851853713:AAHoF5wvoib3FOsH6adR9w586vM-jO4G39U'
+TOKEN = '8851853713:AAHoF5wvoib3F0sH6adR9wCn3buGVuOR3Ww'
 _TOKEN = ''
 OWNER = ""
 NAME = ""
