@@ -16,7 +16,7 @@ BOT_TOKEN = '8982068568:AAEs06DuLsA3c69HYYcYNf_b61lAyNmtaA4'
 GITHUB_TOKEN = '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'
 REPO_OWNER = "htetaungkyaw25163038-cpu"
 REPO_NAME = "Htet-Gyi"
-ADMIN_ID = "5411776510"  # သင့် Telegram Chat ID ကို ဖြည့်စွက်ပေးထားပါသည်
+ADMIN_ID = "5411776510"
 
 SUCCESS_CODE = asyncio.Queue()
 bot = AsyncTeleBot(BOT_TOKEN)
