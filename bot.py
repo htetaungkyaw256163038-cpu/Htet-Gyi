@@ -143,7 +143,8 @@ async def genkey(message):
     try:
         args = message.text.split()
         if len(args) < 3: return await bot.reply_to(message, "Usage: /genkey 1h ID")
-        plan, user_id = args[1], args[2]
+        plan = args[1]
+        user_id = args[2]
         expiry = generate_expiry(plan)
         if not expiry: return await bot.reply_to(message, "Plan မှားနေသည်။")
         auth_list, sha = await get_file_content("auth_list.json")
