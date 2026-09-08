@@ -1,13 +1,13 @@
-import telebot, asyncio, aiohttp, json, base64, random
+import telebot, asyncio, aiohttp, json
 from telebot.async_telebot import AsyncTeleBot
 from aiohttp import web
 import cv2
-import dddocr
+import ddddocr
 
 import numpy as np
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
-TOKEN = '8851853713:AAHoF5wvoib3F0sH6adR9wCn3buGVuOR3Ww'
+TOKEN = '8851853713:AAHoF5wvoib3FOsH6adR9w586vM-jO4G39U'
 _TOKEN = ''
 OWNER = ""
 NAME = ""
