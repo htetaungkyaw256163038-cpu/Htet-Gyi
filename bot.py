@@ -6,6 +6,9 @@ import ddddocr
 import numpy as np
 from datetime import datetime, timedelta, timezone
 
+# --- GPU Error ကာကွယ်ရန် သတ်မှတ်ချက် ---
+os.environ["ONNXRUNTIME_PROVIDER_DEFAULT_TO_CPU"] = "1"
+
 # --- BOT CONFIGURATION ---
 BOT_TOKEN = '8982068568:AAEfHFefCkG5PQIvrjIFCL13ZcXdXbNgHcA'
 GITHUB_TOKEN = 'သင့်ရဲ့_GitHub_ဆောက်ထားတဲ့_Token_Key_ဒီမှာထည့်ပါ'
@@ -285,6 +288,6 @@ async def handle_result(message):
                 await bot.reply_to(message, "ပြသရန် ရလဒ်မရှိသေးပါ။")
         except Exception as e:
             print(f"Error at handle_result: {e}")
-            await bot.reply_to(message, "ရလဒ်ဆွဲယူရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။")
+            await bot.reply_to(message, "ရလဒ်ဆယူရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။")
     else:
         await bot.reply_to(message, "သင်သည် ဤ command ကိုသုံးရန် ခွင့်ပြုချက်မရှိပါ။")
