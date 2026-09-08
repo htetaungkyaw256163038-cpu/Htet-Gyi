@@ -167,7 +167,7 @@ async def handle_result(message):
 
 async def main():
     await rebuild_session()
-    await asyncio.gather(web_server(), bot.polling(none_stop=True))
+    await asyncio.gather(web_server(), bot.polling(non_stop=True))
 
 if __name__ == '__main__':
     asyncio.run(main())
