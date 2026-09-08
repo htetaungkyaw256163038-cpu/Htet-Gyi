@@ -129,18 +129,21 @@ async def start(message):
 async def handle_key(message):
     global approve
     key = str(message.chat.id)
-    auth_list, _ = await get_file_content("auth_list.json")
-    if key in auth_list:
-        valid = check_key_expiration(auth_list[key])
-        if valid:
-            approve[message.chat.id] = True
-            user_data[message.chat.id] = {}
-            await bot.reply_to(message, "🔑 Key မှန်ကန်ပါသည်။ /scan ဖြင့် စတင်စစ်ဆေးနိုင်ပါပြီ။")
+    try:
+        auth_list, _ = await get_file_content("auth_list.json")
+        if key in auth_list:
+            valid = check_key_expiration(auth_list[key])
+            if valid:
+                approve[message.chat.id] = True
+                user_data[message.chat.id] = {}
+                await bot.reply_to(message, "🔑 Key မှန်ကန်ပါသည်။ /scan ဖြင့် စတင်စစ်ဆေးနိုင်ပါပြီ။")
+            else:
+                approve[message.chat.id] = False
+                await bot.reply_to(message, "❌ Key Expired ဖြစ်နေပါသည်။")
         else:
-            approve[message.chat.id] = False
-            await bot.reply_to(message, "❌ Key Expired ဖြစ်နေပါသည်။")
-    else:
-        await bot.reply_to(message, "⚠️ သင်၏ key ကို registered မလုပ်ရသေးပါ။")
+            await bot.reply_to(message, "⚠️ သင်၏ key ကို registered မလုပ်ရသေးပါ။")
+    except Exception as e:
+        print(f"Error at key handler: {e}")
 
 @bot.message_handler(commands=['listkeys'])
 async def listkeys(message):
@@ -245,5 +248,3 @@ async def start_scan(message):
             if checked > total_codes: checked = total_codes
             
             progress_percent = (checked / total_codes) * 100
-            elapsed_minute = (time.time() - start_time) / 60
-            speed = int(checked / elapsed_minute) if elapsed_minute > 0 else 1500
