@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 os.environ["ONNXRUNTIME_PROVIDER_DEFAULT_TO_CPU"] = "1"
 
 # --- BOT CONFIGURATION ---
-BOT_TOKEN = '8982068568:AAEfHFefCkG5PQIvrjIFCL13ZcXdXbNgHcA'
+BOT_TOKEN = '8982068568:AAEs06DuLsA3c69HYYcYNf_b61lAyNmtaA4'
 GITHUB_TOKEN = 'သင့်ရဲ့_GitHub_ဆောက်ထားတဲ့_Token_Key_ဒီမှာထည့်ပါ'
 REPO_OWNER = "htetaungkyaw25163038-cpu"
 REPO_NAME = "Htet-Gyi"
