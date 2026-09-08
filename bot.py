@@ -6,8 +6,10 @@ import ddddocr
 import numpy as np
 from datetime import datetime, timedelta, timezone
 
-# --- GPU Error ကာကွယ်ရန် သတ်မှတ်ချက် ---
+# --- RAM ချွေတာရန်နှင့် CPU သုံးရန် သတ်မှတ်ချက်များ ---
 os.environ["ONNXRUNTIME_PROVIDER_DEFAULT_TO_CPU"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 
 # --- BOT CONFIGURATION ---
 BOT_TOKEN = '8982068568:AAEs06DuLsA3c69HYYcYNf_b61lAyNmtaA4'
@@ -290,5 +292,3 @@ async def handle_result(message):
             print(f"Error at handle_result: {e}")
             await bot.reply_to(message, "ရလဒ်ဆွဲယူရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။")
     else:
-        await bot.reply_to(message, "သင်သည် ဤ command ကိုသုံးရန် ခွင့်ပြုချက်မရှိပါ။")
-
