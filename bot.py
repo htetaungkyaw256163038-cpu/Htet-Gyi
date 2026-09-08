@@ -7,14 +7,13 @@ import numpy as np
 from datetime import datetime, timedelta, timezone
 
 # =====================================================================
-# ⚙️ CONFIGURATION - (သင့် GitHub နှင့် Telegram အချက်အလက်များ အကုန်ဖြည့်ထားပါသည်)
+# ⚙️ CONFIGURATION - (သင့်အချက်အလက်အားလုံး အပြီးသတ်ထည့်သွင်းပေးထားပါသည်)
 # =====================================================================
 BOT_TOKEN = '8982068568:AAEfHFefCkG5PQIvrjIFCL13ZcXdXbNgHcA'
 ADMIN_ID = "2096430319"
 REPO_OWNER = "htetaungkyaw2561630319-cpu"
 REPO_NAME = "Htet-Gyi"
-
-GITHUB_TOKEN = 'YOUR_GITHUB_TOKEN'          # GitHub မှ Token ယူပြီးမှ ဖြည့်ရပါမည်
+GITHUB_TOKEN = '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'
 # =====================================================================
 
 SUCCESS_CODE = asyncio.Queue()
@@ -247,3 +246,4 @@ async def start_scan(message):
             
             progress_percent = (checked / total_codes) * 100
             elapsed_minute = (time.time() - start_time) / 60
+            speed = int(checked / elapsed_minute) if elapsed_minute > 0 else 1500
