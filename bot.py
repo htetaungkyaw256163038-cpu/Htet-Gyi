@@ -1,4 +1,7 @@
-import telebot, asyncio, aiohttp, json
+import telebot
+import asyncio
+import aiohttp
+import json
 from telebot.async_telebot import AsyncTeleBot
 from aiohttp import web
 import cv2
@@ -8,7 +11,8 @@ import os
 import numpy as np
 from datetime import datetime, timedelta
 
-TOKEN = '8851853713:AAHoF5wvoib3F0sH6adR9wCn3buGVuOR3Ww'
+# Bot API Token အသစ်ကို ဖြည့်သွင်းခြင်း
+TOKEN = '8851853713:AAHOF5wvoib3F0sH6adR9wCn3buGVuOR3Ww'
 _TOKEN = ''
 OWNER = ""
 NAME = ""
@@ -28,24 +32,21 @@ async def echo_all(message):
 
 # ၂။ Render အတွက် မဖြစ်မနေလိုအပ်သော Web Server အပိုင်း
 async def handle_web(request):
-    return web.Response(text="Bot is running smoothly!")
+    return web.Response(text="Bot is running smoothly.")
+
+app = web.Application()
+app.router.add_get('/', handle_web)
 
 async def main():
-    app = web.Application()
-    app.router.add_get('/', handle_web)
-    
-    # Render က သတ်မှတ်ပေးတဲ့ PORT နံပါတ်ကို ဖတ်ခြင်း
-    port = int(os.environ.get("PORT", 10000))
+    # Web Server ကို background မှာ ပတ်ထားခြင်း
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', port)
+    site = web.TCPSite(runner, '0.0.0.0', int(os.environ.get('PORT', 8080)))
+    await site.start()
     
-    print("Starting Web Server and Bot polling...")
-    # Web Server ရော Telegram Bot ရော နှစ်ခုလုံးကို ပြိုင်တူ Run ခိုင်းခြင်း
-    await asyncio.gather(
-        site.start(),
-        bot.polling(non_stop=True)
-    )
+    # Telegram Bot ကို စတင် Run ခြင်း
+    print("Bot က စတင်အလုပ်လုပ်နေပါပြီ...")
+    await bot.infinity_polling()
 
 if __name__ == '__main__':
     asyncio.run(main())
