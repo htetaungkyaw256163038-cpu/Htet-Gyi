@@ -288,6 +288,7 @@ async def handle_result(message):
                 await bot.reply_to(message, "ပြသရန် ရလဒ်မရှိသေးပါ။")
         except Exception as e:
             print(f"Error at handle_result: {e}")
-            await bot.reply_to(message, "ရလဒ်ဆယူရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။")
+            await bot.reply_to(message, "ရလဒ်ဆွဲယူရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။")
     else:
         await bot.reply_to(message, "သင်သည် ဤ command ကိုသုံးရန် ခွင့်ပြုချက်မရှိပါ။")
+
