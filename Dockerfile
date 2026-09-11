@@ -1,20 +1,16 @@
 FROM python:3.10-slim
 
-# Linux အတွက် နောက်ဆုံးပေါ် library အမှန်များကို သွင်းပေးခြင်း
+# ddddocr (onnxruntime) နှင့် OpenCV အတွက် လိုအပ်သော Linux Libraries များ ထည့်သွင်းခြင်း
 RUN apt-get update && apt-get install -y \
-    libgl1 \
+    libgl1-mesa-glx \
     libglib2.0-0 \
-    g++ \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-
-ENV ONNXRUNTIME_PROVIDER=CPUExecutionProvider
 
 CMD ["python", "bot.py"]
