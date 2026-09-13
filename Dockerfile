@@ -18,8 +18,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 5. Project အတွင်းရှိ ဖိုင်အားလုံးကို Container ထဲ ကူးထည့်ခြင်း
 COPY . .
 
-# 6. Render အတွက် Port ဖွင့်ပေးခြင်း (သင့် App ပေါ်မူတည်၍ ပြောင်းလဲနိုင်သည်)
+# 6. Render အတွက် Port ဖွင့်ပေးခြင်း
 EXPOSE 10000
 
-# 7. Application ကို စတင်ပတ်မည့် Command (ဥပမာ- uvicorn app:app သို့မဟုတ် python main.py)
-CMD ["python", "main.py"]
+# 7. Application ကို စတင်ပတ်မည့် Command (သင့်ဖိုင်နာမည်အတိုင်း ပြောင်းလဲနိုင်သည်)
+CMD ["python", "bot.py"]
