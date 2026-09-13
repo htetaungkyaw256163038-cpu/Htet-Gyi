@@ -1,4 +1,23 @@
-import telebot, asyncio, aiohttp, json, base64, random, re, os, string, time, uuid, concurrent.futures
+import os
+import sys
+
+# =============================================================
+# Render CPU ပေါ်တွင် ONNX Runtime / GPU Error မတက်စေရန် 
+# အခြား Packages များ Import မလုပ်မီ အပေါ်ဆုံးမှ အတင်းအကြပ် CPU ပြောင်းလဲခိုင်းခြင်း
+# =============================================================
+os.environ["ONNXRUNTIME_PROVIDERS"] = "CPUExecutionProvider"
+
+import telebot
+import asyncio
+import aiohttp
+import json
+import base64
+import random
+import re
+import string
+import time
+import uuid
+import concurrent.futures
 from telebot.async_telebot import AsyncTeleBot
 from aiohttp import web
 import cv2
@@ -160,8 +179,8 @@ async def listkeys(message):
             else:
                 plan = "old"
                 expires_str = str(data)
-            lines.append(f"👤 {uid}\n   Plan: {plan}\n   Expires: {expires_str}")
-        text = f"📋 Registered Keys ({len(auth_list)})\n\n" + "\n\n".join(lines)
+            lines.append(f" {uid}\n   Plan: {plan}\n   Expires: {expires_str}")
+        text = f" Registered Keys ({len(auth_list)})\n\n" + "\n\n".join(lines)
         if len(text) > 4096:
             for i in range(0, len(text), 4096):
                 await bot.send_message(message.chat.id, text[i:i+4096])
@@ -246,7 +265,5 @@ async def handle_result(message):
     auth_list, _ = await get_file_content("auth_list.json")
     if str(message.chat.id) in auth_list:
         results, _ = await get_file_content("result.json")
-        chat_id_str = str(message.chat.id)
-        if chat_id_str in results and results[chat_id_str]:
-            codes = "\n".join(results[chat_id_str])
-            await bot.reply_to(message, f"ရလဒ်များ -\n{codes}")
+        # မှတ်ချက် - ပေးပို့လာသော code သည် ဤနေရာတွင် ဆုံးသွားသဖြင့် ကျန်ရှိသော code အဟောင်းများကို ဆက်လက်ထားရှိပေးပါရန်။
+        pass
