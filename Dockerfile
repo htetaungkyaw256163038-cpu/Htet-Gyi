@@ -4,11 +4,12 @@ FROM python:3.10-slim
 # 2. Container အတွင်း အလုပ်လုပ်မည့် Folder သတ်မှတ်ခြင်း
 WORKDIR /app
 
-# 3. ONNX GPU Error များ မတက်စေရန် Environment သတ်မှတ်ခြင်း
+# 3. ONNX Runtime နှင့် ddddocr ကုဒ်အတွင်းပိုင်းအထိ GPU လုံးဝမရှာဘဲ CPU သီးသန့်ပဲ သုံးဖို့ အတင်းအမိန့်ပေးခြင်း
 ENV ONNXRUNTIME_PROVIDERS=CPUExecutionProvider
+ENV CUDA_VISIBLE_DEVICES=-1
+ENV ORT_Logging_Level=4
 
-# 4. အမှားတက်နေသော apt-get install စာကြောင်းများကို အကုန်ဖြုတ်ချပြီး 
-#    စနစ်ကို Update သက်သက်သာ အမြန်လုပ်ခိုင်းခြင်း
+# 4. စနစ်ကို အမြန် Update လုပ်ခိုင်းခြင်း
 RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
