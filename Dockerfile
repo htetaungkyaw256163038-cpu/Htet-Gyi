@@ -1,16 +1,17 @@
-# 1. Base Image ကို အမှားကင်းစင်သော Python Debian Bullseye သို့ ပြောင်းလဲပါသည်
+# 1. Base Image အဖြစ် တည်ငြိမ်ပြီးသား Python Debian Bullseye ကို သုံးပါမည်
 FROM python:3.10-slim-bullseye
 
 # 2. Container အတွင်း အလုပ်လုပ်မည့် Folder သတ်မှတ်ခြင်း
 WORKDIR /app
 
-# 3. ONNX GPU Error နှင့် လုံခြုံရေးအမေးများ ကျော်ရန် Environment သတ်မှတ်ခြင်း
+# 3. ONNX GPU Error များ မတက်စေရန် Environment ကြိုတင်သတ်မှတ်ခြင်း
 ENV ONNXRUNTIME_PROVIDERS=CPUExecutionProvider
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 4. ddddocr / OpenCV အတွက် လိုအပ်သော Linux Packages များ ထည့်သွင်းခြင်း
+# 4. ddddocr / OpenCV အတွက် လိုအပ်သော Linux Packages နာမည်အမှန်များ ထည့်သွင်းခြင်း
 RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
+    libgl1 \
+    libglx-mesa0 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
