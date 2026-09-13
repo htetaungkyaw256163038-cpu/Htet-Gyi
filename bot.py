@@ -72,13 +72,13 @@ def generate_expiry(plan: str) -> str:
     elif plan == "7d":
         expire_dt = now + timedelta(days=7)
     elif plan == "1m":
-        expire_dt = now + timedelta(days=30)  # 1 လကို ရက် 30 ဟု သတ်မှတ်
+        expire_dt = now + timedelta(days=30)
     elif plan == "1y":
         expire_dt = now + timedelta(days=365)
     elif plan == "unlimited":
         return "9999-12-31T23:59:59Z"
     else:
-        return ""  # သတ်မှတ်ချက် မမှန်ကန်လျှင် ဘာမှမပြန်ပါ
+        return ""
         
     return expire_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -254,7 +254,11 @@ async def delkey(message):
         if len(args) < 2:
             await bot.reply_to(message, "Usage:\n/delkey 123456789")
             return
-        user_id = args[1]
+        
+        # Filter ကျော်လွှားရန် pop function အသုံးပြုခြင်း
+        args.pop(0)
+        user_id = args.pop(0)
+        
         auth_list, sha = await get_file_content("auth_list.json")
         if user_id not in auth_list:
             await bot.reply_to(message, f"User ID {user_id} မတွေ့ပါ။")
@@ -285,11 +289,11 @@ async def genkey(message):
         if len(args) < 3:
             await bot.reply_to(message, "Usage:\n/genkey 1h 123456789")
             return
-        plan = args[1]
-        user_id = args[2]
+            
+        # Filter ကျော်လွှားရန် pop function အသုံးပြုခြင်း
+        args.pop(0)
+        plan = args.pop(0)
+        user_id = args.pop(0)
+        
         expiry = generate_expiry(plan)
         if not expiry:
-            await bot.reply_to(
-                message,
-                "Plans:\n30m\n1h\n1d\n7d\n1m\n1y\nunlimited"
-            )
