@@ -3,5 +3,4 @@ aiohttp
 opencv-python-headless
 ddddocr
 numpy
-
-
+onnxruntime==1.14.1
