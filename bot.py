@@ -55,6 +55,58 @@ SESSION_POOL_SLOTS = 5
 CONCURRENCY = 2500
 BATCH_SIZE = 5000
 
+# =============================================================
+# KEY EXPIRATION & GENERATION FUNCTIONS (သက်တမ်းစစ်ဆေးသည့်အပိုင်း)
+# =============================================================
+def generate_expiry(plan: str) -> str:
+    """ Plan အလိုက် ကုန်ဆုံးမည့် အချိန်ကို ISO format ဖြင့် ထုတ်ပေးရန် """
+    now = datetime.now(timezone.utc)
+    plan = plan.lower().strip()
+    
+    if plan == "30m":
+        expire_dt = now + timedelta(minutes=30)
+    elif plan == "1h":
+        expire_dt = now + timedelta(hours=1)
+    elif plan == "1d":
+        expire_dt = now + timedelta(days=1)
+    elif plan == "7d":
+        expire_dt = now + timedelta(days=7)
+    elif plan == "1m":
+        expire_dt = now + timedelta(days=30)  # 1 လကို ရက် 30 ဟု သတ်မှတ်
+    elif plan == "1y":
+        expire_dt = now + timedelta(days=365)
+    elif plan == "unlimited":
+        return "9999-12-31T23:59:59Z"
+    else:
+        return ""  # သတ်မှတ်ချက် မမှန်ကန်လျှင် ဘာမှမပြန်ပါ
+        
+    return expire_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+def check_key_expiration(user_entry) -> bool:
+    """ Key သက်တမ်း ကျန်ရှိသေးခြင်း ရှိ/မရှိ စစ်ဆေးရန် """
+    if not isinstance(user_entry, dict):
+        try:
+            if user_entry == "9999-12-31T23:59:59Z" or user_entry.lower() == "unlimited":
+                return True
+            exp_dt = datetime.fromisoformat(user_entry.replace("Z", "+00:00"))
+            return datetime.now(timezone.utc) < exp_dt
+        except:
+            return False
+            
+    expires_at = user_entry.get("expires_at", "")
+    if expires_at == "9999-12-31T23:59:59Z":
+        return True
+        
+    try:
+        expire_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+        return datetime.now(timezone.utc) < expire_dt
+    except Exception as e:
+        print(f"Error checking expiration: {e}")
+        return False
+
+# =============================================================
+# RENDER WEB SERVER FUNCTIONS (Render Web Service အသက်ရှင်စေရန်)
+# =============================================================
 async def handle(request):
     return web.Response(text="Bot is awake and running 24/7!")
 
@@ -63,6 +115,7 @@ async def web_server():
     app.router.add_get('/', handle)
     runner = web.AppRunner(app)
     await runner.setup()
+    # Render သည် ၎င်းတို့၏ PORT ကို Environment Variable မှတစ်ဆင့် ပေးလေ့ရှိသည်
     port = int(os.environ.get('PORT', 8099))
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
@@ -115,6 +168,9 @@ async def update_file_content(path, content, sha, message):
     async with session.put(url, headers=headers, json=payload) as response:
         return await response.text()
 
+# =============================================================
+# TELEGRAM BOT HANDLERS (Command များ ကိုင်တွယ်သည့်အပိုင်း)
+# =============================================================
 @bot.message_handler(commands=['start'])
 async def start(message):
     await bot.reply_to(message, "Bot စတင်ပါပြီ။ /key ဖြင့်စတင်ပါ။")
@@ -236,34 +292,3 @@ async def genkey(message):
         if not expiry:
             await bot.reply_to(
                 message,
-                "Plans:\n30m\n1h\n1d\n7d\n1m\n1y\nunlimited"
-            )
-            return
-        auth_list, sha = await get_file_content("auth_list.json")
-        auth_list[user_id] = {
-            "expires_at": expiry,
-            "plan": plan
-        }
-        await update_file_content(
-            "auth_list.json",
-            auth_list,
-            sha,
-            f"Add key for {user_id}"
-        )
-        await bot.reply_to(
-            message,
-            f" Key Generated\n\n"
-            f"USER ID : {user_id}\n"
-            f"PLAN : {plan}\n"
-            f"EXPIRES : {expiry}"
-        )
-    except Exception as e:
-        print(f"Error at genkey {e}")
-
-@bot.message_handler(commands=['result'])
-async def handle_result(message):
-    auth_list, _ = await get_file_content("auth_list.json")
-    if str(message.chat.id) in auth_list:
-        results, _ = await get_file_content("result.json")
-        # မှတ်ချက် - ပေးပို့လာသော code သည် ဤနေရာတွင် ဆုံးသွားသဖြင့် ကျန်ရှိသော code အဟောင်းများကို ဆက်လက်ထားရှိပေးပါရန်။
-        pass
