@@ -4,18 +4,17 @@ FROM python:3.10-slim
 # 2. Container အတွင်း အလုပ်လုပ်မည့် Folder သတ်မှတ်ခြင်း
 WORKDIR /app
 
-# 3. ONNX Runtime နှင့် ddddocr ကုဒ်အတွင်းပိုင်းအထိ GPU လုံးဝမရှာဘဲ CPU သီးသန့်ပဲ သုံးဖို့ အတင်းအမိန့်ပေးခြင်း
+# 3. ONNX CPU သီးသန့်အတွက် Environment ကြိုတင်သတ်မှတ်ခြင်း
 ENV ONNXRUNTIME_PROVIDERS=CPUExecutionProvider
-ENV CUDA_VISIBLE_DEVICES=-1
-ENV ORT_Logging_Level=4
+ENV PIP_NO_CACHE_DIR=1
 
-# 4. စနစ်ကို အမြန် Update လုပ်ခိုင်းခြင်း
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
-
-# 5. လိုအပ်သော package စာရင်းများကို ကူးယူပြီး install လုပ်ခြင်း
+# 4. အခြေခံ packages များကို အရင်သွင်းခြင်း
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
+
+# 5. ddddocr ဗားရှင်းမကိုက်ညီမှု မရှိစေရန် CPU သီးသန့် package ကို အရင်အဆင့်ဆင့် သွင်းခြင်း
+RUN pip install onnxruntime-cpu==1.15.1
+RUN pip install ddddocr --no-dependencies
 
 # 6. Project အတွင်းရှိ ဖိုင်အားလုံးကို Container ထဲ ကူးထည့်ခြင်း
 COPY . .
