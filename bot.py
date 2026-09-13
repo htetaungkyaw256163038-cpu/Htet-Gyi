@@ -255,7 +255,6 @@ async def delkey(message):
             await bot.reply_to(message, "Usage:\n/delkey 123456789")
             return
         
-        # Filter ကျော်လွှားရန် pop function အသုံးပြုခြင်း
         args.pop(0)
         user_id = args.pop(0)
         
@@ -290,10 +289,11 @@ async def genkey(message):
             await bot.reply_to(message, "Usage:\n/genkey 1h 123456789")
             return
             
-        # Filter ကျော်လွှားရန် pop function အသုံးပြုခြင်း
         args.pop(0)
         plan = args.pop(0)
         user_id = args.pop(0)
         
         expiry = generate_expiry(plan)
         if not expiry:
+            await bot.reply_to(
+                message,
