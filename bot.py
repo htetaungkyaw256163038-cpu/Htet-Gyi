@@ -115,7 +115,6 @@ async def web_server():
     app.router.add_get('/', handle)
     runner = web.AppRunner(app)
     await runner.setup()
-    # Render သည် ၎င်းတို့၏ PORT ကို Environment Variable မှတစ်ဆင့် ပေးလေ့ရှိသည်
     port = int(os.environ.get('PORT', 8099))
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
@@ -292,3 +291,5 @@ async def genkey(message):
         if not expiry:
             await bot.reply_to(
                 message,
+                "Plans:\n30m\n1h\n1d\n7d\n1m\n1y\nunlimited"
+            )
