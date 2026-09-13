@@ -4,8 +4,10 @@ FROM python:3.10-slim
 # 2. Container အတွင်း အလုပ်လုပ်မည့် Folder သတ်မှတ်ခြင်း
 WORKDIR /app
 
-# 3. Render ရဲ့ အခမဲ့ CPU Server ပေါ်တွင် ONNX / GPU အမှားမတက်စေရန် CPU ကိုသာ သုံးခိုင်းခြင်း
+# 3. ddddocr/ONNX Runtime ကို GPU လုံးဝမရှာဘဲ CPU ပဲ သုံးဖို့ စနစ်တစ်ခုလုံးကို အတင်းပိတ်ခိုင်းခြင်း
 ENV ONNXRUNTIME_PROVIDERS=CPUExecutionProvider
+ENV ORT_Logging_Level=3
+ENV CUDA_VISIBLE_DEVICES=-1
 
 # 4. စနစ်သစ်များတွင် Render အမှားမတက်စေရန် လိုအပ်သော Linux Packages များ ထည့်သွင်းခြင်း
 RUN apt-get update && apt-get install -y \
