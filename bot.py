@@ -1,23 +1,4 @@
-import os
-import sys
-
-# =============================================================
-# Render CPU ပေါ်တွင် ONNX Runtime / GPU Error မတက်စေရန် 
-# အခြား Packages များ Import မလုပ်မီ အပေါ်ဆုံးမှ အတင်းအကြပ် CPU ပြောင်းလဲခိုင်းခြင်း
-# =============================================================
-os.environ["ONNXRUNTIME_PROVIDERS"] = "CPUExecutionProvider"
-
-import telebot
-import asyncio
-import aiohttp
-import json
-import base64
-import random
-import re
-import string
-import time
-import uuid
-import concurrent.futures
+import telebot, asyncio, aiohttp, json, base64, random, re, os, string, time, uuid, concurrent.futures
 from telebot.async_telebot import AsyncTeleBot
 from aiohttp import web
 import cv2
@@ -25,12 +6,14 @@ import ddddocr
 import numpy as np
 from datetime import datetime, timedelta, timezone
 
-# Render Environment Variables မှ Token ကို လုံခြုံစွာ လှမ်းဖတ်ရန် ပြင်ဆင်ထားပါသည်
-BOT_TOKEN = os.environ.get('BOT_TOKEN', '8982068568:AAGBCcp-pRufITLAE0KdQ3p-rkiminTbYtQ')
-GITHUB_TOKEN = ''
-REPO_OWNER = ""
-REPO_NAME = ""
-ADMIN_ID = ""
+# ================= CONFIG =================
+BOT_TOKEN = '8769192902:AAFnLg3NlU4I2Ujqp0vsk7g3voEBHhvILAI'
+GITHUB_TOKEN = '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'
+REPO_OWNER = "htetaungkyaw256163038-cpu"
+REPO_NAME = "Htet-Gyi"
+ADMIN_ID = "2096430319"
+
+# ================= GLOBAL =================
 SUCCESS_CODE = asyncio.Queue()
 bot = AsyncTeleBot(BOT_TOKEN)
 user_data = {}
@@ -55,58 +38,6 @@ SESSION_POOL_SLOTS = 5
 CONCURRENCY = 2500
 BATCH_SIZE = 5000
 
-# =============================================================
-# KEY EXPIRATION & GENERATION FUNCTIONS (သက်တမ်းစစ်ဆေးသည့်အပိုင်း)
-# =============================================================
-def generate_expiry(plan: str) -> str:
-    """ Plan အလိုက် ကုန်ဆုံးမည့် အချိန်ကို ISO format ဖြင့် ထုတ်ပေးရန် """
-    now = datetime.now(timezone.utc)
-    plan = plan.lower().strip()
-    
-    if plan == "30m":
-        expire_dt = now + timedelta(minutes=30)
-    elif plan == "1h":
-        expire_dt = now + timedelta(hours=1)
-    elif plan == "1d":
-        expire_dt = now + timedelta(days=1)
-    elif plan == "7d":
-        expire_dt = now + timedelta(days=7)
-    elif plan == "1m":
-        expire_dt = now + timedelta(days=30)
-    elif plan == "1y":
-        expire_dt = now + timedelta(days=365)
-    elif plan == "unlimited":
-        return "9999-12-31T23:59:59Z"
-    else:
-        return ""
-        
-    return expire_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-def check_key_expiration(user_entry) -> bool:
-    """ Key သက်တမ်း ကျန်ရှိသေးခြင်း ရှိ/မရှိ စစ်ဆေးရန် """
-    if not isinstance(user_entry, dict):
-        try:
-            if user_entry == "9999-12-31T23:59:59Z" or user_entry.lower() == "unlimited":
-                return True
-            exp_dt = datetime.fromisoformat(user_entry.replace("Z", "+00:00"))
-            return datetime.now(timezone.utc) < exp_dt
-        except:
-            return False
-            
-    expires_at = user_entry.get("expires_at", "")
-    if expires_at == "9999-12-31T23:59:59Z":
-        return True
-        
-    try:
-        expire_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-        return datetime.now(timezone.utc) < expire_dt
-    except Exception as e:
-        print(f"Error checking expiration: {e}")
-        return False
-
-# =============================================================
-# RENDER WEB SERVER FUNCTIONS (Render Web Service အသက်ရှင်စေရန်)
-# =============================================================
 async def handle(request):
     return web.Response(text="Bot is awake and running 24/7!")
 
@@ -143,7 +74,7 @@ async def _drain_stdout(proc, idx):
             pass
 
 async def get_file_content(path):
-    url = f"https://github.com{REPO_OWNER}/{REPO_NAME}/contents/{path}"
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     async with session.get(url, headers=headers) as response:
         if response.status == 200:
@@ -153,7 +84,7 @@ async def get_file_content(path):
     return {}, None
 
 async def update_file_content(path, content, sha, message):
-    url = f"https://github.com{REPO_OWNER}/{REPO_NAME}/contents/{path}"
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
         "Content-Type": "application/json"
@@ -167,9 +98,6 @@ async def update_file_content(path, content, sha, message):
     async with session.put(url, headers=headers, json=payload) as response:
         return await response.text()
 
-# =============================================================
-# TELEGRAM BOT HANDLERS (Command များ ကိုင်တွယ်သည့်အပိုင်း)
-# =============================================================
 @bot.message_handler(commands=['start'])
 async def start(message):
     await bot.reply_to(message, "Bot စတင်ပါပြီ။ /key ဖြင့်စတင်ပါ။")
@@ -234,8 +162,8 @@ async def listkeys(message):
             else:
                 plan = "old"
                 expires_str = str(data)
-            lines.append(f" {uid}\n   Plan: {plan}\n   Expires: {expires_str}")
-        text = f" Registered Keys ({len(auth_list)})\n\n" + "\n\n".join(lines)
+            lines.append(f"👤 {uid}\n   Plan: {plan}\n   Expires: {expires_str}")
+        text = f"📋 Registered Keys ({len(auth_list)})\n\n" + "\n\n".join(lines)
         if len(text) > 4096:
             for i in range(0, len(text), 4096):
                 await bot.send_message(message.chat.id, text[i:i+4096])
@@ -254,10 +182,7 @@ async def delkey(message):
         if len(args) < 2:
             await bot.reply_to(message, "Usage:\n/delkey 123456789")
             return
-        
-        args.pop(0)
-        user_id = args.pop(0)
-        
+        user_id = args[1]
         auth_list, sha = await get_file_content("auth_list.json")
         if user_id not in auth_list:
             await bot.reply_to(message, f"User ID {user_id} မတွေ့ပါ။")
@@ -288,12 +213,88 @@ async def genkey(message):
         if len(args) < 3:
             await bot.reply_to(message, "Usage:\n/genkey 1h 123456789")
             return
-            
-        args.pop(0)
-        plan = args.pop(0)
-        user_id = args.pop(0)
-        
+        plan = args[1]
+        user_id = args[2]
         expiry = generate_expiry(plan)
         if not expiry:
             await bot.reply_to(
                 message,
+                "Plans:\n30m\n1h\n1d\n7d\n1m\n1y\nunlimited"
+            )
+            return
+        auth_list, sha = await get_file_content("auth_list.json")
+        auth_list[user_id] = {
+            "expires_at": expiry,
+            "plan": plan
+        }
+        await update_file_content(
+            "auth_list.json",
+            auth_list,
+            sha,
+            f"Add key for {user_id}"
+        )
+        await bot.reply_to(
+            message,
+            f" Key Generated\n\n"
+            f"USER ID : {user_id}\n"
+            f"PLAN : {plan}\n"
+            f"EXPIRES : {expiry}"
+        )
+    except Exception as e:
+        print(f"Error at genkey {e}")
+
+@bot.message_handler(commands=['result'])
+async def handle_result(message):
+    auth_list, _ = await get_file_content("auth_list.json")
+    if str(message.chat.id) in auth_list:
+        try:
+            results, _ = await get_file_content("result.json")
+            chat_id_str = str(message.chat.id)
+            if chat_id_str in results and results[chat_id_str]:
+                # ဖြတ်တောက်နေသော ကုဒ်အပိုင်းကို ပြည့်စုံအောင် ပိတ်ပေးလိုက်ခြင်း
+                codes = "\n".join(results[chat_id_str])
+                await bot.reply_to(message, f"📋 သင့်ရဲ့ ရလဒ်များ -\n\n{codes}")
+            else:
+                await bot.reply_to(message, "ပြသစရာ ရလဒ် မရှိသေးပါ။")
+        except Exception as e:
+            await bot.reply_to(message, f"Error opening result: {e}")
+    else:
+        await bot.reply_to(message, "သင့်မှာ ခွင့်ပြုချက်မရှိပါ။")
+
+# ================= HELPER FUNCTIONS =================
+def check_key_expiration(data):
+    if not isinstance(data, dict):
+        return False
+    expires = data.get("expires_at", "")
+    if expires == "9999-12-31T23:59:59Z":
+        return True
+    try:
+        exp_dt = datetime.fromisoformat(expires.replace("Z", "+00:00"))
+        return datetime.now(timezone.utc) < exp_dt
+    except:
+        return False
+
+def generate_expiry(plan):
+    now = datetime.now(timezone.utc)
+    if plan == "30m":
+        delta = timedelta(minutes=30)
+    elif plan == "1h":
+        delta = timedelta(hours=1)
+    elif plan == "1d":
+        delta = timedelta(days=1)
+    elif plan == "7d":
+        delta = timedelta(days=7)
+    elif plan == "1m":
+        delta = timedelta(days=30)
+    elif plan == "1y":
+        delta = timedelta(days=365)
+    elif plan == "unlimited":
+        return "9999-12-31T23:59:59Z"
+    else:
+        return None
+    return (now + delta).isoformat().replace("+00:00", "Z")
+
+# ================= START BOT =================
+async def main():
+    await rebuild_session()
+    await asyncio.gather(
