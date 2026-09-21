@@ -2,32 +2,14 @@ import os
 import json
 import asyncio
 from datetime import datetime, timezone, timedelta
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import threading
 from telebot.async_telebot import AsyncTeleBot
-from telebot.types import Message
-
-# Render အတွက် Port ဖွင့်ပေးမည့် Dummy Server (Web Service Error မတက်အောင် ကာကွယ်ရန်)
-class SimpleHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Telegram Bot is running smoothly!")
-    def log_message(self, format, *args):
-        pass
-
-def run_server():
-    port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(('0.0.0.0', port), SimpleHandler)
-    server.serve_forever()
-
-# Background မှာ Port ဖွင့်ရန် Thread စတင်ခြင်း
-server_thread = threading.Thread(target=run_server)
-server_thread.daemon = True
-server_thread.start()
+from telebot.types import Message, Update
+from aiohttp import web
 
 # သင့်ရဲ့ Bot Token
 BOT_TOKEN = '8851853713:AAE_x4jtZpza4owQ2Bm4d0quQ2BpJ8EWIJk'
+RENDER_URL = 'https://htet-gyi.onrender.com'  # သင့် Render URL
+
 bot = AsyncTeleBot(BOT_TOKEN)
 
 ADMIN_ID = 2096430319
@@ -102,9 +84,43 @@ async def scan_voucher(message: Message):
         
     await bot.reply_to(message, "ဘောက်ချာ စကင်ဖတ်ခြင်း စတင်နေပါပြီ... ကျေးဇူးပြု၍ စောင့်ဆိုင်းပါ။")
 
+# ===== Webhook Routes =====
+async def handle_webhook(request):
+    try:
+        body = await request.text()
+        update = Update.de_json(body)
+        await bot.process_new_updates([update])
+    except Exception as e:
+        print(f"Webhook error: {e}")
+    return web.Response(text="ok")
+
+async def handle_root(request):
+    # Webhook ကို အလိုအလျောက် သတ်မှတ်ပေးမည်
+    await bot.remove_webhook()
+    await bot.set_webhook(url=f"{RENDER_URL}/{BOT_TOKEN}")
+    return web.Response(text="webhook set")
+
 async def main():
-    print("Bot is running...")
-    await bot.infinity_polling()
+    print("Bot is running (webhook mode)...")
+    
+    app = web.Application()
+    app.router.add_post(f"/{BOT_TOKEN}", handle_webhook)
+    app.router.add_get("/", handle_root)
+    
+    port = int(os.environ.get("PORT", 10000))
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    
+    # Render မှာ webhook အလိုအလျောက် သတ်မှတ်
+    await bot.remove_webhook()
+    await bot.set_webhook(url=f"{RENDER_URL}/{BOT_TOKEN}")
+    print(f"Webhook set to {RENDER_URL}/{BOT_TOKEN}")
+    
+    # ထာဝရ run နေစေရန်
+    while True:
+        await asyncio.sleep(3600)
 
 if __name__ == '__main__':
     asyncio.run(main())
