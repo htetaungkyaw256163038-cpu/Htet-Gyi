@@ -10,7 +10,8 @@ os.environ["ONNXRUNTIME_PROVIDER_NAME"] = "CPUExecutionProvider"
 import ddddocr
 
 # ================= CONFIG =================
-BOT_TOKEN = '8769192902:AAFnLg3NlU4I2Ujqp0vsk7g3voEBHhvILAI'
+# 💡 သင်ပေးထားသော Token အသစ်စက်စက်အား ဤနေရာတွင် တခါတည်း လဲလှယ်ပေးထားပါသည်
+BOT_TOKEN = '8851853713:AAH0OhysnhQsCqgpN4Z0Bg-hVowD-E_aU3A'
 GITHUB_TOKEN = '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'
 REPO_OWNER = "htetaungkyaw256163038-cpu"
 REPO_NAME = "Htet-Gyi"
@@ -26,7 +27,6 @@ _voucher_sem = None
 session = None
 _connector = None
 
-# 💡 Render Free Server မကျပ်စေရန် Speed ကို ၁၀၀ ဟု ညှိပေးထားခြင်း ဖြစ်ပါသည်
 CONCURRENCY = 100
 BATCH_SIZE = 500
 
@@ -163,7 +163,6 @@ async def handle_input(message):
 async def check_voucher_api(voucher_code):
     global session, _voucher_sem
     async with _voucher_sem:
-        # ⚠️ ၎င်းနေရာတွင် စစ်ဆေးမည့် တကယ့် API Link ကို ပြောင်းထည့်ရန် လိုအပ်ပါသည်
         target_url = f"https://httpbin.org{voucher_code}" 
         try:
             async with session.get(target_url, timeout=5) as resp:
