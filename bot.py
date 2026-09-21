@@ -10,12 +10,12 @@ os.environ["ONNXRUNTIME_PROVIDER_NAME"] = "CPUExecutionProvider"
 import ddddocr
 
 # ================= CONFIG =================
-# 💡 သင်ပေးထားသော Token အသစ်စက်စက်အား ဤနေရာတွင် တခါတည်း လဲလှယ်ပေးထားပါသည်
 BOT_TOKEN = '8851853713:AAH0OhysnhQsCqgpN4Z0Bg-hVowD-E_aU3A'
 GITHUB_TOKEN = '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'
 REPO_OWNER = "htetaungkyaw256163038-cpu"
 REPO_NAME = "Htet-Gyi"
-ADMIN_ID = "2096430319"
+# 💡 သင်၏ တကယ့် Telegram Chat ID အမှန်အား ဤနေရာတွင် တခါတည်း လဲလှယ်ပေးထားပါသည်
+ADMIN_ID = "6135874256"
 
 # ================= GLOBAL =================
 SUCCESS_CODE = asyncio.Queue()
