@@ -1,11 +1,32 @@
 import os
 import json
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import threading
 from telebot.async_telebot import AsyncTeleBot
 from telebot.types import Message
 
-# သင့်ရဲ့ Bot Token အသစ်
+# Render အတွက် Port ဖွင့်ပေးမည့် Dummy Server (Web Service Error မတက်အောင် ကာကွယ်ရန်)
+class SimpleHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Telegram Bot is running smoothly!")
+    def log_message(self, format, *args):
+        pass
+
+def run_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(('0.0.0.0', port), SimpleHandler)
+    server.serve_forever()
+
+# Background မှာ Port ဖွင့်ရန် Thread စတင်ခြင်း
+server_thread = threading.Thread(target=run_server)
+server_thread.daemon = True
+server_thread.start()
+
+# သင့်ရဲ့ Bot Token
 BOT_TOKEN = '8851853713:AAE_x4jtZpza4owQ2Bm4d0quQ2BpJ8EWIJk'
 bot = AsyncTeleBot(BOT_TOKEN)
 
@@ -57,8 +78,6 @@ async def generate_key(message: Message):
     plan = parts[1]
     target_user_id = parts[2]
     
-    # 1 ရက် သို့မဟုတ် အများကြီးအတွက် သက်တမ်းတွက်ချက်ရန်
-    from datetime import timedelta
     expires_at = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
     if plan == 'unlimited':
         expires_at = "9999-12-31T23:59:59Z"
