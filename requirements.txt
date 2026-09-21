@@ -1,5 +1,6 @@
-pyTelegramBotAPI
-aiohttp
-opencv-python-headless
-numpy
-pillow
+pyTelegramBotAPI==4.22.1
+aiohttp==3.10.5
+numpy==2.1.1
+opencv-python-headless==4.10.0.84
+ddddocr-unofficial==1.4.11
+web.py==0.62
