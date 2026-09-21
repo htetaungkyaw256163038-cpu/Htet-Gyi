@@ -74,7 +74,7 @@ async def _drain_stdout(proc, idx):
             pass
 
 async def get_file_content(path):
-    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
+    url = f"https://github.com{REPO_OWNER}/{REPO_NAME}/contents/{path}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     async with session.get(url, headers=headers) as response:
         if response.status == 200:
@@ -84,7 +84,7 @@ async def get_file_content(path):
     return {}, None
 
 async def update_file_content(path, content, sha, message):
-    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
+    url = f"https://github.com{REPO_OWNER}/{REPO_NAME}/contents/{path}"
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
         "Content-Type": "application/json"
@@ -97,6 +97,8 @@ async def update_file_content(path, content, sha, message):
     }
     async with session.put(url, headers=headers, json=payload) as response:
         return await response.text()
+
+# ================= TELEGRAM HANDLERS =================
 
 @bot.message_handler(commands=['start'])
 async def start(message):
@@ -114,19 +116,13 @@ async def handle_key(message):
             user_data[message.chat.id] = {}
             await bot.reply_to(
                 message,
-                " Key မှန်ကန်ပါသည်။ /input ဖြင့် Session URL ထည့်ပါ။"
+                " Key မှန်ကန်ပါသည်။ /input ဖြင့် စကင်ဖတ်မည့် ဂဏန်းအကွာအဝေးကို သတ်မှတ်ပါ။\n\nဥပမာ- `/input 1000000 2000000`"
             )
         else:
             approve[message.chat.id] = False
-            await bot.reply_to(
-                message,
-                " Key Expired ဖြစ်နေပါသည်။"
-            )
+            await bot.reply_to(message, " Key Expired ဖြစ်နေပါသည်။")
     else:
-        await bot.reply_to(
-            message,
-            " သင်၏ key ကို registered မလုပ်ရသေးပါ။"
-        )
+        await bot.reply_to(message, " သင်၏ key ကို registered မလုပ်ရသေးပါ။")
 
 @bot.message_handler(commands=['listkeys'])
 async def listkeys(message):
@@ -162,8 +158,8 @@ async def listkeys(message):
             else:
                 plan = "old"
                 expires_str = str(data)
-            lines.append(f"👤 {uid}\n   Plan: {plan}\n   Expires: {expires_str}")
-        text = f"📋 Registered Keys ({len(auth_list)})\n\n" + "\n\n".join(lines)
+            lines.append(f" {uid}\n   Plan: {plan}\n   Expires: {expires_str}")
+        text = f" Registered Keys ({len(auth_list)})\n\n" + "\n\n".join(lines)
         if len(text) > 4096:
             for i in range(0, len(text), 4096):
                 await bot.send_message(message.chat.id, text[i:i+4096])
@@ -196,10 +192,7 @@ async def delkey(message):
         )
         approve.pop(int(user_id), None)
         user_data.pop(int(user_id), None)
-        await bot.reply_to(
-            message,
-            f" Key Deleted\n\nUSER ID : {user_id}"
-        )
+        await bot.reply_to(message, f" Key Deleted\n\nUSER ID : {user_id}")
     except Exception as e:
         print(f"Error at delkey {e}")
 
@@ -217,10 +210,7 @@ async def genkey(message):
         user_id = args[2]
         expiry = generate_expiry(plan)
         if not expiry:
-            await bot.reply_to(
-                message,
-                "Plans:\n30m\n1h\n1d\n7d\n1m\n1y\nunlimited"
-            )
+            await bot.reply_to(message, "Plans:\n30m\n1h\n1d\n7d\n1m\n1y\nunlimited")
             return
         auth_list, sha = await get_file_content("auth_list.json")
         auth_list[user_id] = {
@@ -243,6 +233,27 @@ async def genkey(message):
     except Exception as e:
         print(f"Error at genkey {e}")
 
+@bot.message_handler(commands=['input'])
+async def handle_input(message):
+    chat_id = message.chat.id
+    if not approve.get(chat_id, False):
+        await bot.reply_to(message, " သင့်မှာ ခွင့်ပြုချက်မရှိပါ။ အရင်ဆုံး /key ကို နှိပ်ပါ။")
+        return
+    try:
+        args = message.text.split()
+        if len(args) < 3:
+            await bot.reply_to(message, " အသုံးပြုပုံစံ:\n`/input [စတင်မည့်ဂဏန်း] [အဆုံးသတ်ဂဏန်း]`\n\nဥပမာ- `/input 1000000 2000000`")
+            return
+        start_num = int(args[1])
+        end_num = int(args[2])
+        
+        status_msg = await bot.reply_to(message, " Voucher စကင်ဖတ်ခြင်း လုပ်ငန်းစဉ်ကို ပြင်ဆင်နေပါသည်...")
+        asyncio.create_task(start_scanning_process(chat_id, start_num, end_num, status_msg))
+    except ValueError:
+        await bot.reply_to(message, " ကျေးဇူးပြု၍ ဂဏန်းသီးသန့်သာ ထည့်သွင်းပေးပါ။")
+    except Exception as e:
+        print(f"Error at input command: {e}")
+
 @bot.message_handler(commands=['result'])
 async def handle_result(message):
     auth_list, _ = await get_file_content("auth_list.json")
@@ -251,50 +262,18 @@ async def handle_result(message):
             results, _ = await get_file_content("result.json")
             chat_id_str = str(message.chat.id)
             if chat_id_str in results and results[chat_id_str]:
-                # ဖြတ်တောက်နေသော ကုဒ်အပိုင်းကို ပြည့်စုံအောင် ပိတ်ပေးလိုက်ခြင်း
                 codes = "\n".join(results[chat_id_str])
-                await bot.reply_to(message, f"📋 သင့်ရဲ့ ရလဒ်များ -\n\n{codes}")
+                await bot.reply_to(message, f" သင့်ရဲ့ အောင်မြင်သော ရလဒ်များ -\n\n{codes}")
             else:
-                await bot.reply_to(message, "ပြသစရာ ရလဒ် မရှိသေးပါ။")
+                await bot.reply_to(message, "ပြသစရာ အောင်မြင်သော ရလဒ် မရှိသေးပါ။")
         except Exception as e:
             await bot.reply_to(message, f"Error opening result: {e}")
     else:
         await bot.reply_to(message, "သင့်မှာ ခွင့်ပြုချက်မရှိပါ။")
 
-# ================= HELPER FUNCTIONS =================
-def check_key_expiration(data):
-    if not isinstance(data, dict):
-        return False
-    expires = data.get("expires_at", "")
-    if expires == "9999-12-31T23:59:59Z":
-        return True
-    try:
-        exp_dt = datetime.fromisoformat(expires.replace("Z", "+00:00"))
-        return datetime.now(timezone.utc) < exp_dt
-    except:
-        return False
+# ================= CORE SCAN ENGINE =================
 
-def generate_expiry(plan):
-    now = datetime.now(timezone.utc)
-    if plan == "30m":
-        delta = timedelta(minutes=30)
-    elif plan == "1h":
-        delta = timedelta(hours=1)
-    elif plan == "1d":
-        delta = timedelta(days=1)
-    elif plan == "7d":
-        delta = timedelta(days=7)
-    elif plan == "1m":
-        delta = timedelta(days=30)
-    elif plan == "1y":
-        delta = timedelta(days=365)
-    elif plan == "unlimited":
-        return "9999-12-31T23:59:59Z"
-    else:
-        return None
-    return (now + delta).isoformat().replace("+00:00", "Z")
-
-# ================= START BOT =================
-async def main():
-    await rebuild_session()
-    await asyncio.gather(
+async def check_voucher_api(voucher_code):
+    """ Voucher တစ်ခုချင်းစီအား API သို့ လှမ်းစစ်ပေးသည့် နေရာဖြစ်သည် """
+    target_url = "https://example-voucher-website.com"
+    headers = {
