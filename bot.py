@@ -158,8 +158,8 @@ async def listkeys(message):
             else:
                 plan = "old"
                 expires_str = str(data)
-            lines.append(f" {uid}\n   Plan: {plan}\n   Expires: {expires_str}")
-        text = f" Registered Keys ({len(auth_list)})\n\n" + "\n\n".join(lines)
+            lines.append(f"👤 {uid}\n   Plan: {plan}\n   Expires: {expires_str}")
+        text = f"📋 Registered Keys ({len(auth_list)})\n\n" + "\n\n".join(lines)
         if len(text) > 4096:
             for i in range(0, len(text), 4096):
                 await bot.send_message(message.chat.id, text[i:i+4096])
@@ -237,20 +237,20 @@ async def genkey(message):
 async def handle_input(message):
     chat_id = message.chat.id
     if not approve.get(chat_id, False):
-        await bot.reply_to(message, " သင့်မှာ ခွင့်ပြုချက်မရှိပါ။ အရင်ဆုံး /key ကို နှိပ်ပါ။")
+        await bot.reply_to(message, "⚠️ သင့်မှာ ခွင့်ပြုချက်မရှိပါ။ အရင်ဆုံး /key ကို နှိပ်ပါ။")
         return
     try:
         args = message.text.split()
         if len(args) < 3:
-            await bot.reply_to(message, " အသုံးပြုပုံစံ:\n`/input [စတင်မည့်ဂဏန်း] [အဆုံးသတ်ဂဏန်း]`\n\nဥပမာ- `/input 1000000 2000000`")
+            await bot.reply_to(message, "ℹ️ အသုံးပြုပုံစံ:\n`/input [စတင်မည့်ဂဏန်း] [အဆုံးသတ်ဂဏန်း]`\n\nဥပမာ- `/input 1000000 2000000`")
             return
         start_num = int(args[1])
         end_num = int(args[2])
         
-        status_msg = await bot.reply_to(message, " Voucher စကင်ဖတ်ခြင်း လုပ်ငန်းစဉ်ကို ပြင်ဆင်နေပါသည်...")
+        status_msg = await bot.reply_to(message, "🚀 Voucher စကင်ဖတ်ခြင်း လုပ်ငန်းစဉ်ကို ပြင်ဆင်နေပါသည်...")
         asyncio.create_task(start_scanning_process(chat_id, start_num, end_num, status_msg))
     except ValueError:
-        await bot.reply_to(message, " ကျေးဇူးပြု၍ ဂဏန်းသီးသန့်သာ ထည့်သွင်းပေးပါ။")
+        await bot.reply_to(message, "⚠️ ကျေးဇူးပြု၍ ဂဏန်းသီးသန့်သာ ထည့်သွင်းပေးပါ။")
     except Exception as e:
         print(f"Error at input command: {e}")
 
@@ -263,7 +263,7 @@ async def handle_result(message):
             chat_id_str = str(message.chat.id)
             if chat_id_str in results and results[chat_id_str]:
                 codes = "\n".join(results[chat_id_str])
-                await bot.reply_to(message, f" သင့်ရဲ့ အောင်မြင်သော ရလဒ်များ -\n\n{codes}")
+                await bot.reply_to(message, f"📋 သင့်ရဲ့ အောင်မြင်သော ရလဒ်များ -\n\n{codes}")
             else:
                 await bot.reply_to(message, "ပြသစရာ အောင်မြင်သော ရလဒ် မရှိသေးပါ။")
         except Exception as e:
@@ -275,5 +275,3 @@ async def handle_result(message):
 
 async def check_voucher_api(voucher_code):
     """ Voucher တစ်ခုချင်းစီအား API သို့ လှမ်းစစ်ပေးသည့် နေရာဖြစ်သည် """
-    target_url = "https://example-voucher-website.com"
-    headers = {
