@@ -10,7 +10,7 @@ os.environ["ONNXRUNTIME_PROVIDER_NAME"] = "CPUExecutionProvider"
 import ddddocr
 
 # ================= CONFIG =================
-BOT_TOKEN = '8851853713:AAFdgFyl1YEAPKL5oXuR9KMSH9GI0-fpzs'
+BOT_TOKEN = '8851853713:AAHyhEp6Cefwqp4anntJDqrnDHWoI_jNOGU'
 GITHUB_TOKEN = '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'
 REPO_OWNER = "htetaungkyaw256163038-cpu"
 REPO_NAME = "Htet-Gyi"
