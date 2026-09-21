@@ -1,10 +1,13 @@
-import telebot, asyncio, aiohttp, json, base64, random, re, os, string, time, uuid, concurrent.futures
+import telebot, asyncio, aiohttp, json, base64, random, re, os, string, time, uuid
 from telebot.async_telebot import AsyncTeleBot
 from aiohttp import web
 import cv2
-import ddddocr
 import numpy as np
 from datetime import datetime, timedelta, timezone
+
+# GPU error မတက်စေရန် CPU သီးသန့်သုံးဖို့ အမိန့်ပေးခြင်း
+os.environ["ONNXRUNTIME_PROVIDER_NAME"] = "CPUExecutionProvider"
+import ddddocr
 
 # ================= CONFIG =================
 BOT_TOKEN = '8769192902:AAFnLg3NlU4I2Ujqp0vsk7g3voEBHhvILAI'
@@ -16,27 +19,16 @@ ADMIN_ID = "2096430319"
 # ================= GLOBAL =================
 SUCCESS_CODE = asyncio.Queue()
 bot = AsyncTeleBot(BOT_TOKEN)
-user_data = {}
 approve = {}
-scan_tasks = {}
-success_messages = {}
-success_texts = {}
-limited_messages = {}
-limited_texts = {}
-captcha_state = {}
-retry_counts = {}
-_session_pool = {}
+user_data = {}
+_voucher_sem = None
 
 session = None
 _connector = None
-_voucher_sem = None
 
-_start_time = time.monotonic()
-
-SESSION_POOL_LIMIT = 60
-SESSION_POOL_SLOTS = 5
-CONCURRENCY = 2500
-BATCH_SIZE = 5000
+# 💡 Render Free Server မကျပ်စေရန် Speed ကို ၁၀၀ ဟု ညှိပေးထားခြင်း ဖြစ်ပါသည်
+CONCURRENCY = 100
+BATCH_SIZE = 500
 
 async def handle(request):
     return web.Response(text="Bot is awake and running 24/7!")
@@ -58,29 +50,41 @@ async def rebuild_session():
     if _connector and not _connector.closed:
         await _connector.close()
     timeout = aiohttp.ClientTimeout(total=30)
-    _connector = aiohttp.TCPConnector(limit=6000, ttl_dns_cache=300, ssl=False)
-    session = aiohttp.ClientSession(
-        timeout=timeout,
-        connector=_connector,
-        connector_owner=False
-    )
+    _connector = aiohttp.TCPConnector(limit=500, ttl_dns_cache=300, ssl=False)
+    session = aiohttp.ClientSession(timeout=timeout, connector=_connector)
 
-async def _drain_stdout(proc, idx):
-    if proc and proc.stdout:
-        try:
-            async for _ in proc.stdout:
-                pass
-        except Exception:
-            pass
+def generate_expiry(plan):
+    now = datetime.now(timezone.utc)
+    if plan == "30m": return (now + timedelta(minutes=30)).isoformat() + "Z"
+    if plan == "1h": return (now + timedelta(hours=1)).isoformat() + "Z"
+    if plan == "1d": return (now + timedelta(days=1)).isoformat() + "Z"
+    if plan == "7d": return (now + timedelta(days=7)).isoformat() + "Z"
+    if plan == "1m": return (now + timedelta(days=30)).isoformat() + "Z"
+    if plan == "1y": return (now + timedelta(days=365)).isoformat() + "Z"
+    if plan == "unlimited": return "9999-12-31T23:59:59Z"
+    return None
+
+def check_key_expiration(key_data):
+    if not isinstance(key_data, dict): return False
+    expires = key_data.get("expires_at", "")
+    if expires == "9999-12-31T23:59:59Z": return True
+    try:
+        exp_dt = datetime.fromisoformat(expires.replace("Z", "+00:00"))
+        return datetime.now(timezone.utc) < exp_dt
+    except:
+        return False
 
 async def get_file_content(path):
     url = f"https://github.com{REPO_OWNER}/{REPO_NAME}/contents/{path}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-    async with session.get(url, headers=headers) as response:
-        if response.status == 200:
-            data = await response.json()
-            content = base64.b64decode(data['content']).decode('utf-8')
-            return json.loads(content), data['sha']
+    try:
+        async with session.get(url, headers=headers) as response:
+            if response.status == 200:
+                data = await response.json()
+                content = base64.b64decode(data['content']).decode('utf-8')
+                return json.loads(content), data['sha']
+    except Exception as e:
+        print(f"Error getting file {path}: {e}")
     return {}, None
 
 async def update_file_content(path, content, sha, message):
@@ -90,13 +94,12 @@ async def update_file_content(path, content, sha, message):
         "Content-Type": "application/json"
     }
     encoded = base64.b64encode(json.dumps(content).encode()).decode()
-    payload = {
-        "message": message,
-        "content": encoded,
-        "sha": sha
-    }
-    async with session.put(url, headers=headers, json=payload) as response:
-        return await response.text()
+    payload = {"message": message, "content": encoded, "sha": sha}
+    try:
+        async with session.put(url, headers=headers, json=payload) as response:
+            return await response.text()
+    except Exception as e:
+        print(f"Error updating file {path}: {e}")
 
 # ================= TELEGRAM HANDLERS =================
 
@@ -113,125 +116,29 @@ async def handle_key(message):
         valid = check_key_expiration(auth_list[key])
         if valid:
             approve[message.chat.id] = True
-            user_data[message.chat.id] = {}
-            await bot.reply_to(
-                message,
-                " Key မှန်ကန်ပါသည်။ /input ဖြင့် စကင်ဖတ်မည့် ဂဏန်းအကွာအဝေးကို သတ်မှတ်ပါ။\n\nဥပမာ- `/input 1000000 2000000`"
-            )
+            await bot.reply_to(message, "Key မှန်ကန်ပါသည်။ /input ဖြင့် စကင်ဖတ်မည့် ဂဏန်းအကွာအဝေးကို သတ်မှတ်ပါ။\n\nဥပမာ- `/input 1000000 2000000`")
         else:
             approve[message.chat.id] = False
-            await bot.reply_to(message, " Key Expired ဖြစ်နေပါသည်။")
+            await bot.reply_to(message, "Key Expired ဖြစ်နေပါသည်။")
     else:
-        await bot.reply_to(message, " သင်၏ key ကို registered မလုပ်ရသေးပါ။")
-
-@bot.message_handler(commands=['listkeys'])
-async def listkeys(message):
-    if str(message.chat.id) != ADMIN_ID:
-        await bot.reply_to(message, "No Permission")
-        return
-    try:
-        auth_list, _ = await get_file_content("auth_list.json")
-        if not auth_list:
-            await bot.reply_to(message, "Registered key မရှိသေးပါ။")
-            return
-        lines = []
-        for uid, data in auth_list.items():
-            if isinstance(data, dict):
-                expires = data.get("expires_at", "unknown")
-                plan = data.get("plan", "unknown")
-                if expires == "9999-12-31T23:59:59Z":
-                    expires_str = "Unlimited"
-                else:
-                    try:
-                        exp_dt = datetime.fromisoformat(expires.replace("Z", "+00:00"))
-                        now = datetime.now(timezone.utc)
-                        if exp_dt < now:
-                            expires_str = "Expired"
-                        else:
-                            diff = exp_dt - now
-                            days = diff.days
-                            hours, rem = divmod(diff.seconds, 3600)
-                            minutes = rem // 60
-                            expires_str = f"{days}d {hours}h {minutes}m left"
-                    except:
-                        expires_str = expires
-            else:
-                plan = "old"
-                expires_str = str(data)
-            lines.append(f"👤 {uid}\n   Plan: {plan}\n   Expires: {expires_str}")
-        text = f"📋 Registered Keys ({len(auth_list)})\n\n" + "\n\n".join(lines)
-        if len(text) > 4096:
-            for i in range(0, len(text), 4096):
-                await bot.send_message(message.chat.id, text[i:i+4096])
-        else:
-            await bot.reply_to(message, text)
-    except Exception as e:
-        print(f"Error at listkeys {e}")
-
-@bot.message_handler(commands=['delkey'])
-async def delkey(message):
-    if str(message.chat.id) != ADMIN_ID:
-        await bot.reply_to(message, "No Permission")
-        return
-    try:
-        args = message.text.split()
-        if len(args) < 2:
-            await bot.reply_to(message, "Usage:\n/delkey 123456789")
-            return
-        user_id = args[1]
-        auth_list, sha = await get_file_content("auth_list.json")
-        if user_id not in auth_list:
-            await bot.reply_to(message, f"User ID {user_id} မတွေ့ပါ။")
-            return
-        del auth_list[user_id]
-        await update_file_content(
-            "auth_list.json",
-            auth_list,
-            sha,
-            f"Delete key for {user_id}"
-        )
-        approve.pop(int(user_id), None)
-        user_data.pop(int(user_id), None)
-        await bot.reply_to(message, f" Key Deleted\n\nUSER ID : {user_id}")
-    except Exception as e:
-        print(f"Error at delkey {e}")
+        await bot.reply_to(message, "သင်၏ key ကို registered မလုပ်ရသေးပါ။")
 
 @bot.message_handler(commands=['genkey'])
 async def genkey(message):
-    if str(message.chat.id) != ADMIN_ID:
-        await bot.reply_to(message, "No Permission")
-        return
+    if str(message.chat.id) != ADMIN_ID: return
     try:
         args = message.text.split()
-        if len(args) < 3:
-            await bot.reply_to(message, "Usage:\n/genkey 1h 123456789")
-            return
+        if len(args) < 3: return
         plan = args[1]
         user_id = args[2]
         expiry = generate_expiry(plan)
-        if not expiry:
-            await bot.reply_to(message, "Plans:\n30m\n1h\n1d\n7d\n1m\n1y\nunlimited")
-            return
+        if not expiry: return
         auth_list, sha = await get_file_content("auth_list.json")
-        auth_list[user_id] = {
-            "expires_at": expiry,
-            "plan": plan
-        }
-        await update_file_content(
-            "auth_list.json",
-            auth_list,
-            sha,
-            f"Add key for {user_id}"
-        )
-        await bot.reply_to(
-            message,
-            f" Key Generated\n\n"
-            f"USER ID : {user_id}\n"
-            f"PLAN : {plan}\n"
-            f"EXPIRES : {expiry}"
-        )
+        auth_list[user_id] = {"expires_at": expiry, "plan": plan}
+        await update_file_content("auth_list.json", auth_list, sha, f"Add key for {user_id}")
+        await bot.reply_to(message, f"Key Generated\n\nUSER ID : {user_id}\nPLAN : {plan}")
     except Exception as e:
-        print(f"Error at genkey {e}")
+        print(e)
 
 @bot.message_handler(commands=['input'])
 async def handle_input(message):
@@ -242,36 +149,59 @@ async def handle_input(message):
     try:
         args = message.text.split()
         if len(args) < 3:
-            await bot.reply_to(message, "ℹ️ အသုံးပြုပုံစံ:\n`/input [စတင်မည့်ဂဏန်း] [အဆုံးသတ်ဂဏန်း]`\n\nဥပမာ- `/input 1000000 2000000`")
+            await bot.reply_to(message, "ℹ️ ဥပမာ- `/input 1000000 2000000`")
             return
         start_num = int(args[1])
         end_num = int(args[2])
-        
-        status_msg = await bot.reply_to(message, "🚀 Voucher စကင်ဖတ်ခြင်း လုပ်ငန်းစဉ်ကို ပြင်ဆင်နေပါသည်...")
+        status_msg = await bot.reply_to(message, "🚀 Voucher စကင်ဖတ်ခြင်းကို ပြင်ဆင်နေပါသည်...")
         asyncio.create_task(start_scanning_process(chat_id, start_num, end_num, status_msg))
-    except ValueError:
-        await bot.reply_to(message, "⚠️ ကျေးဇူးပြု၍ ဂဏန်းသီးသန့်သာ ထည့်သွင်းပေးပါ။")
     except Exception as e:
-        print(f"Error at input command: {e}")
-
-@bot.message_handler(commands=['result'])
-async def handle_result(message):
-    auth_list, _ = await get_file_content("auth_list.json")
-    if str(message.chat.id) in auth_list:
-        try:
-            results, _ = await get_file_content("result.json")
-            chat_id_str = str(message.chat.id)
-            if chat_id_str in results and results[chat_id_str]:
-                codes = "\n".join(results[chat_id_str])
-                await bot.reply_to(message, f"📋 သင့်ရဲ့ အောင်မြင်သော ရလဒ်များ -\n\n{codes}")
-            else:
-                await bot.reply_to(message, "ပြသစရာ အောင်မြင်သော ရလဒ် မရှိသေးပါ။")
-        except Exception as e:
-            await bot.reply_to(message, f"Error opening result: {e}")
-    else:
-        await bot.reply_to(message, "သင့်မှာ ခွင့်ပြုချက်မရှိပါ။")
+        print(e)
 
 # ================= CORE SCAN ENGINE =================
 
 async def check_voucher_api(voucher_code):
-    """ Voucher တစ်ခုချင်းစီအား API သို့ လှမ်းစစ်ပေးသည့် နေရာဖြစ်သည် """
+    global session, _voucher_sem
+    async with _voucher_sem:
+        # ⚠️ ၎င်းနေရာတွင် စစ်ဆေးမည့် တကယ့် API Link ကို ပြောင်းထည့်ရန် လိုအပ်ပါသည်
+        target_url = f"https://httpbin.org{voucher_code}" 
+        try:
+            async with session.get(target_url, timeout=5) as resp:
+                if resp.status == 200:
+                    return {"code": voucher_code, "status": "SUCCESS"}
+        except:
+            pass
+        return {"code": voucher_code, "status": "FAILED"}
+
+async def start_scanning_process(chat_id, start_num, end_num, status_msg):
+    global _voucher_sem
+    if _voucher_sem is None:
+        _voucher_sem = asyncio.Semaphore(CONCURRENCY)
+    
+    await bot.edit_message_text("🔍 စကင်ဖတ်ခြင်း စတင်ပါပြီ...", chat_id, status_msg.message_id)
+    
+    current_batch = []
+    for code in range(start_num, end_num + 1):
+        current_batch.append(check_voucher_api(code))
+        if len(current_batch) >= BATCH_SIZE or code == end_num:
+            results = await asyncio.gather(*current_batch)
+            current_batch = []
+            
+            success_codes = [r["code"] for r in results if r["status"] == "SUCCESS"]
+            if success_codes:
+                res_data, sha = await get_file_content("result.json")
+                if str(chat_id) not in res_data: res_data[str(chat_id)] = []
+                res_data[str(chat_id)].extend(success_codes)
+                await update_file_content("result.json", res_data, sha, f"Found {len(success_codes)} codes")
+                await bot.send_message(chat_id, f"🎉 Voucher အသစ်တွေ့ရှိသည် -\n" + "\n".join(map(str, success_codes)))
+                
+    await bot.edit_message_text("✅ စကင်ဖတ်ခြင်း ပြီးဆုံးပါပြီ။", chat_id, status_msg.message_id)
+
+async def main():
+    await rebuild_session()
+    await web_server()
+    print("Bot is polling...")
+    await bot.infinity_polling()
+
+if __name__ == "__main__":
+    asyncio.run(main())
