@@ -10,12 +10,11 @@ os.environ["ONNXRUNTIME_PROVIDER_NAME"] = "CPUExecutionProvider"
 import ddddocr
 
 # ================= CONFIG =================
-BOT_TOKEN = '8851853713:AAH0OhysnhQsCqgpN4Z0Bg-hVowD-E_aU3A'
+BOT_TOKEN = '8851853713:AAFdgFyl1YEAPKL5oXuR9KMSH9GI0-fpzs'
 GITHUB_TOKEN = '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'
 REPO_OWNER = "htetaungkyaw256163038-cpu"
 REPO_NAME = "Htet-Gyi"
-# 💡 သင်၏ တကယ့် Telegram Chat ID အမှန်အား ဤနေရာတွင် တခါတည်း လဲလှယ်ပေးထားပါသည်
-ADMIN_ID = "6135874256"
+ADMIN_ID = "2096430319"
 
 # ================= GLOBAL =================
 SUCCESS_CODE = asyncio.Queue()
@@ -75,7 +74,7 @@ def check_key_expiration(key_data):
         return False
 
 async def get_file_content(path):
-    url = f"https://github.com{REPO_OWNER}/{REPO_NAME}/contents/{path}"
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     try:
         async with session.get(url, headers=headers) as response:
@@ -88,7 +87,7 @@ async def get_file_content(path):
     return {}, None
 
 async def update_file_content(path, content, sha, message):
-    url = f"https://github.com{REPO_OWNER}/{REPO_NAME}/contents/{path}"
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
         "Content-Type": "application/json"
