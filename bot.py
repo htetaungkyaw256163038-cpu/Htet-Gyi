@@ -4,6 +4,7 @@ import asyncio
 from datetime import datetime, timezone, timedelta
 from telebot.async_telebot import AsyncTeleBot
 from telebot.types import Message, Update
+import aiohttp
 from aiohttp import web
 import cv2
 import ddddocr
@@ -18,7 +19,7 @@ import concurrent.futures
 # ===== သင့်ရဲ့ တိကျတဲ့ Token, URL နဲ့ Admin ID များ =====
 BOT_TOKEN = '8851853713:AAE_x4jtZpza4owQ2Bm4d0quQ2BpJ8EWIJk'
 RENDER_URL = 'https://htet-gyi.onrender.com'  # သင့် Render URL
-GITHUB_TOKEN = ''  # လိုအပ်ပါက GitHub Token ထည့်ပါ
+GITHUB_TOKEN = ''  # လိုအပ်ပါਕ GitHub Token ထည့်ပါ
 REPO_OWNER = "Htet-Gyi"
 REPO_NAME = "Htet-Gyi"
 ADMIN_ID = 2096430319
