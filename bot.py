@@ -91,8 +91,8 @@ async def generate_key(message: Message):
     
     await bot.reply_to(message, f"Key Generated\n\nUSER ID : {target_user_id}\nPLAN : {plan}")
 
-@bot.message_handler(commands=['input'])
-async def scan_input(message: Message):
+@bot.message_handler(commands=['scan', 'input'])
+async def scan_voucher(message: Message):
     user_id = str(message.from_user.id)
     auth_data = load_auth()
     
@@ -100,15 +100,7 @@ async def scan_input(message: Message):
         await bot.reply_to(message, "ကျေးဇူးပြု၍ /key ဖြင့် အရင်စစ်ဆေးပါ။")
         return
         
-    parts = message.text.split()
-    if len(parts) < 3:
-        await bot.reply_to(message, "ကျေးဇူးပြု၍ ဂဏန်းအကွာအဝေးကို ထည့်ပါ။ ဥပမာ: /input 1000000 2000000")
-        return
-        
-    start_num = parts[1]
-    end_num = parts[2]
-    
-    await bot.reply_to(message, f"စကင်ဖတ်ခြင်း စတင်နေပါပြီ... ({start_num} - {end_num})")
+    await bot.reply_to(message, "ဘောက်ချာ စကင်ဖတ်ခြင်း စတင်နေပါပြီ... ကျေးဇူးပြု၍ စောင့်ဆိုင်းပါ။")
 
 async def main():
     print("Bot is running...")
