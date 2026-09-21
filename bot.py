@@ -95,7 +95,6 @@ async def handle_webhook(request):
     return web.Response(text="ok")
 
 async def handle_root(request):
-    # Webhook ကို အလိုအလျောက် သတ်မှတ်ပေးမည်
     await bot.remove_webhook()
     await bot.set_webhook(url=f"{RENDER_URL}/{BOT_TOKEN}")
     return web.Response(text="webhook set")
@@ -118,7 +117,6 @@ async def main():
     await bot.set_webhook(url=f"{RENDER_URL}/{BOT_TOKEN}")
     print(f"Webhook set to {RENDER_URL}/{BOT_TOKEN}")
     
-    # ထာဝရ run နေစေရန်
     while True:
         await asyncio.sleep(3600)
 
