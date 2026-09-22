@@ -19,9 +19,9 @@ import concurrent.futures
 # ===== သင့်ရဲ့ တိကျတဲ့ Token, URL နဲ့ Admin ID များ =====
 BOT_TOKEN = '8851853713:AAE_x4jtZpza4owQ2Bm4d0quQ2BpJ8EWIJk'
 RENDER_URL = 'https://htet-gyi.onrender.com'  # သင့် Render URL
-GITHUB_TOKEN = ''  # လိုအပ်ပါက GitHub Token ထည့်ပါ
-REPO_OWNER = "Htet-Gyi"
-REPO_NAME = "Htet-Gyi"
+GITHUB_TOKEN = ''  # Public ဖြစ်ရင် အလွတ်ထားလို့ရသည်
+REPO_OWNER = "htetaungkyaw256163038"  # <--- သင့် GitHub Username အမှန်ကို ထည့်ပါ
+REPO_NAME = "htetaungkyaw256163038-c..."   # <--- သင့် Repository နာမည်အပြည့်အစုံကို ထည့်ပါ
 ADMIN_ID = 2096430319
 # =======================================================
 
@@ -60,7 +60,6 @@ async def handle_webhook(request):
     return web.Response(text="ok")
 
 async def handle_root(request):
-    # handle_root ထဲတွင် Webhook ကို ထပ်မခေါ်တော့ပါ (Rate Limit Error ကာကွယ်ရန်)
     return web.Response(text="Bot is awake and running 24/7 via Webhook!")
 
 async def rebuild_session():
@@ -365,7 +364,6 @@ async def main():
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
     
-    # Render မှာ Webhook ချိတ်ခြင်း (Rate Limit 429 Error ကာကွယ်ရန် Retry ထည့်ထားသည်)
     await bot.remove_webhook()
     
     max_retries = 3
