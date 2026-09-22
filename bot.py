@@ -38,6 +38,11 @@ def check_key(message):
 def handle_portal(message):
     bot.reply_to(message, "Portal URL လက်ခံရရှိပါပြီ။ ကျေးဇူးပြု၍ VOUCHER Mode (6, 7, 8) ကို ရွေးချယ်ပါ။")
 
+@bot.message_handler(func=lambda message: message.text in ['6', '7', '8', 'Mode 6', 'Mode 7', 'Mode 8'])
+def handle_mode(message):
+    mode = message.text.replace('Mode ', '')
+    bot.reply_to(message, f"Voucher Mode {mode} ကို ရွေးချယ်ပြီးပါပြီ။ စကန်ဖတ်ခြင်း စတင်နေပါပြီ... 🟢")
+
 if __name__ == "__main__":
     # ပထမဦးစွာ ယခင် Webhook များကို ဖျက်ပြီး အသစ်ပြန်ချိတ်ခြင်း
     bot.remove_webhook()
