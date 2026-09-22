@@ -3,3 +3,4 @@ aiohttp==3.10.5
 numpy==2.1.1
 opencv-python-headless==4.10.0.84
 ddddocr-unofficial==1.6.0
+flask==3.0.3
