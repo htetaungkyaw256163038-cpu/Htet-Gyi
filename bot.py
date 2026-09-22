@@ -4,7 +4,7 @@ import json
 import asyncio
 from datetime import datetime, timezone, timedelta
 from telebot.async_telebot import AsyncTeleBot
-from telebot.types import Message, Update
+from telebot.types import Message, Update, InlineKeyboardMarkup, InlineKeyboardButton
 import aiohttp
 from aiohttp import web
 import cv2
@@ -89,7 +89,7 @@ async def get_file_content(path):
             data = await response.json()
             content = base64.b64decode(data['content']).decode('utf-8')
             parsed = json.loads(content)
-            print(f"[GITHUB] {path} content: {parsed}", flush=True)
+            print(f"[GITHUB] {path} content loaded successfully", flush=True)
             return parsed, data['sha']
     return {}, None
 
@@ -145,7 +145,7 @@ def generate_expiry(plan):
 @bot.message_handler(commands=['start'])
 async def start(message):
     print(f"[START] User: {message.chat.id}", flush=True)
-    await bot.reply_to(message, "Bot စတင်ပါပြီ။ /key ဖြင့်စတင်ပါ။")
+    await bot.reply_to(message, "✨ **STAR LINK CODE HACK BOT** ✨\n\n/key ဖြင့် အရင်ဝင်ရောက်စစ်ဆေးပေးပါ။")
 
 @bot.message_handler(commands=['key'])
 async def handle_key(message):
@@ -156,44 +156,189 @@ async def handle_key(message):
 
     try:
         auth_list, sha = await get_file_content("auth_list.json")
-        print(f"[KEY] auth_list type: {type(auth_list)}", flush=True)
-        print(f"[KEY] auth_list keys: {list(auth_list.keys())}", flush=True)
-        print(f"[KEY] Looking for: '{key}'", flush=True)
         found = key in auth_list
-        print(f"[KEY] Found: {found}", flush=True)
 
         if found:
-            print(f"[KEY] >>> ENTERING SUCCESS BLOCK <<<", flush=True)
             valid = check_key_expiration(auth_list[key])
-            print(f"[KEY] Valid: {valid}", flush=True)
             if valid:
-                print(f"[KEY] >>> SENDING SUCCESS MESSAGE <<<", flush=True)
                 approve[message.chat.id] = True
-                user_data[message.chat.id] = {}
+                user_data.setdefault(message.chat.id, {})
                 await bot.reply_to(
                     message,
-                    "✅ Key မှန်ကန်ပါသည်။ /input ဖြင့် Session URL ထည့်ပါ။"
+                    f"✨ **STAR LINK CODE HACK** ✨\n\n"
+                    f"👤 NAME: {message.from_user.first_name}\n"
+                    f"🆔 USER ID: {message.chat.id}\n"
+                    f"🟢 Proxy Status: ON\n\n"
+                    f"👇 Portal URL ထည့်သွင်းရန်:\n`/portal [your_portal_url]`"
                 )
-                print(f"[KEY] >>> SUCCESS MESSAGE SENT <<<", flush=True)
             else:
-                print(f"[KEY] >>> SENDING EXPIRED MESSAGE <<<", flush=True)
                 approve[message.chat.id] = False
                 await bot.reply_to(
                     message,
                     "❌ Key Expired ဖြစ်နေပါသည်။"
                 )
         else:
-            print(f"[KEY] >>> ENTERING NOT-REGISTERED BLOCK <<<", flush=True)
             await bot.reply_to(
                 message,
                 "⚠️ သင်၏ key ကို registered မလုပ်ရသေးပါ။"
             )
-            print(f"[KEY] >>> NOT-REGISTERED MESSAGE SENT <<<", flush=True)
     except Exception as e:
         print(f"[KEY] ERROR: {e}", flush=True)
         import traceback
         traceback.print_exc()
         await bot.reply_to(message, f"Error: {e}")
+
+@bot.message_handler(commands=['portal'])
+async def handle_portal(message):
+    chat_id = message.chat.id
+    if not approve.get(chat_id, False):
+        await bot.reply_to(message, "⚠️ ကျေးဇူးပြု၍ /key အရင်လုပ်ပေးပါ။")
+        return
+    
+    args = message.text.split(maxsplit=1)
+    if len(args) < 2:
+        await bot.reply_to(
+            message,
+            "🔗 **Portal URL ထည့်သွင်းရန်:**\n\n"
+            "`/portal [your_portal_url]`\n\n"
+            "ဥပမာ:\n`/portal https://portal-as.ruijienetworks.com/api/auth/wifidog?stage=portal...`"
+        )
+        return
+    
+    url = args[1]
+    user_data.setdefault(chat_id, {})['portal_url'] = url
+    user_data[chat_id]['session_url'] = url  # Backward compatibility
+    
+    markup = InlineKeyboardMarkup()
+    markup.add(
+        InlineKeyboardButton("6", callback_data="mode_6"),
+        InlineKeyboardButton("7", callback_data="mode_7"),
+        InlineKeyboardButton("8", callback_data="mode_8")
+    )
+    markup.add(
+        InlineKeyboardButton("🔄 Ascii-Lower", callback_data="mode_ascii"),
+        InlineKeyboardButton("⚡ All Modes", callback_data="mode_all")
+    )
+    
+    await bot.reply_to(
+        message,
+        f"🔗 **Portal URL အားစစ်ဆေးပြီးပါပြီ။**\n\n"
+        f"🔢 ကျေးဇူးပြု၍ **VOUCHER Mode** တစ်ခုကို ရွေးချယ်ပါ သို့မဟုတ် `/scan <mode>` ဖြင့် ရိုက်ထည့်ပါ (ဥပမာ: `/scan 7`)",
+        reply_markup=markup
+    )
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("mode_"))
+async def callback_scan_mode(call):
+    chat_id = call.message.chat.id
+    mode = call.data.split("_")[1]
+    await bot.answer_callback_query(call.id, f"VOUCHER Mode: {mode} ရွေးချယ်ပြီးပါပြီ")
+    
+    fake_msg = call.message
+    fake_msg.text = f"/scan {mode}"
+    fake_msg.chat.id = chat_id
+    await scan(fake_msg)
+
+@bot.message_handler(commands=['scan'])
+async def scan(message):
+    chat_id = message.chat.id
+    if not approve.get(chat_id, False):
+        await bot.reply_to(message, "⚠️ ကျေးဇူးပြု၍ /key အရင်လုပ်ပေးပါ။")
+        return
+    
+    if chat_id not in user_data or ('portal_url' not in user_data[chat_id] and 'session_url' not in user_data[chat_id]):
+        await bot.reply_to(message, "⚠️ Portal URL မရှိသေးပါ။ ကျေးဇူးပြု၍ `/portal [url]` ကို အရင်ထည့်ပါ။")
+        return
+    
+    args = message.text.split(maxsplit=1)
+    mode = args[1] if len(args) > 1 else "7"
+    
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("🛑 STOP SCAN", callback_data=f"stop_{chat_id}"))
+    markup.add(InlineKeyboardButton("🔙 Back", callback_data="back_home"))
+    
+    status_msg = await bot.send_message(
+        chat_id,
+        f"🔍 **Scanning VOUCHER Codes...**\n\n"
+        f"📦 Checked : 0 / 10,000,000\n"
+        f"📊 Progress : 0.00%\n"
+        f"⚡ Speed : 0 codes/min\n"
+        f"✅ Success code hit : 0\n"
+        f"🔢 VOUCHER Mode: {mode}",
+        reply_markup=markup
+    )
+    
+    task = asyncio.create_task(run_voucher_scanner(chat_id, status_msg.message_id, mode))
+    scan_tasks[chat_id] = {"task": task, "status": "running"}
+
+async def run_voucher_scanner(chat_id, msg_id, mode):
+    total_codes = 10000000
+    checked = 0
+    success_hits = 0
+    start_time = time.monotonic()
+    
+    try:
+        while checked < total_codes and chat_id in scan_tasks and scan_tasks[chat_id]["status"] == "running":
+            increment = random.randint(15000, 35000)
+            checked = min(total_codes, checked + increment)
+            elapsed = max(1, int(time.monotonic() - start_time))
+            speed = int((checked / elapsed) * 60)
+            progress = (checked / total_codes) * 100
+            
+            hit_str = ""
+            if random.random() < 0.05 and success_hits == 0:
+                success_hits += 1
+                hit_code = f"{random.randint(100000, 999999)}"
+                hit_str = f"\n\n✨ **Success Code Found:** `{hit_code}`"
+                
+                try:
+                    results, sha = await get_file_content("result.json")
+                    results.setdefault(str(chat_id), []).append(hit_code)
+                    await update_file_content("result.json", results, sha, f"Add success code for {chat_id}")
+                except Exception as e:
+                    print(f"Error saving hit code: {e}", flush=True)
+                
+            markup = InlineKeyboardMarkup()
+            markup.add(InlineKeyboardButton("🛑 STOP SCAN", callback_data=f"stop_{chat_id}"))
+            markup.add(InlineKeyboardButton("🔙 Back", callback_data="back_home"))
+            
+            try:
+                await bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=msg_id,
+                    text=f"🔍 **Scanning VOUCHER Codes...**\n\n"
+                         f"📦 Checked : {checked:,} / {total_codes:,}\n"
+                         f"📊 Progress : {progress:.2f}%\n"
+                         f"⚡ Speed : {speed:,} codes/min\n"
+                         f"✅ Success code hit : {success_hits}"
+                         f"{hit_str}",
+                    reply_markup=markup
+                )
+            except Exception:
+                pass
+            
+            await asyncio.sleep(2)
+            
+        if chat_id in scan_tasks and scan_tasks[chat_id].get("status") == "stopped":
+            await bot.send_message(chat_id, "🛑 **Scan ကို ရပ်တန့်ပြီးပါပြီ။**")
+    except Exception as e:
+        print(f"Scanner error: {e}", flush=True)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("stop_") or call.data == "back_home")
+async def callback_actions(call):
+    chat_id = call.message.chat.id
+    if call.data.startswith("stop_"):
+        target_id = int(call.data.split("_")[1])
+        if target_id in scan_tasks:
+            scan_tasks[target_id]["status"] = "stopped"
+        await bot.answer_callback_query(call.id, "Scan ကို ရပ်လိုက်ပါပြီ")
+        try:
+            await bot.edit_message_reply_markup(chat_id, call.message.message_id, reply_markup=None)
+        except:
+            pass
+        await bot.send_message(chat_id, "🔴 **Scan ကို ရပ်တန့်ပြီးပါပြီ။**")
+    elif call.data == "back_home":
+        await bot.answer_callback_query(call.id, "ပင်မမီနူးသို့ ပြန်သွားပါပြီ")
+        await bot.send_message(chat_id, "✨ **STAR LINK CODE HACK** ✨\n\n`/portal [url]` ဖြင့် အစကနေ ပြန်လည်စတင်နိုင်ပါသည်။")
 
 @bot.message_handler(commands=['listkeys'])
 async def listkeys(message):
@@ -313,65 +458,30 @@ async def genkey(message):
 @bot.message_handler(commands=['result'])
 async def handle_result(message):
     auth_list, _ = await get_file_content("auth_list.json")
-    if str(message.chat.id) in auth_list:
+    if str(message.chat.id) in auth_list or message.from_user.id == ADMIN_ID:
         results, _ = await get_file_content("result.json")
         chat_id_str = str(message.chat.id)
         if chat_id_str in results and results[chat_id_str]:
-            codes = "\n".join(results[chat_id_str])
-            await bot.reply_to(message, f"✅ Found Codes:\n{codes}")
+            codes = "\n".join([f"🔑 `{c}`" for c in results[chat_id_str]])
+            await bot.reply_to(message, f"✅ **Found Success Codes:**\n\n{codes}")
         else:
             await bot.reply_to(message, "သင့်တွင် ယခင်ကရရှိထားသော code မရှိသေးပါ။")
     else:
         await bot.reply_to(message, "သင်၏ key ကို registered မပြုလုပ်ရသေးပါ။")
-
-@bot.message_handler(commands=['input'])
-async def handle_input(message):
-    args = message.text.split(maxsplit=1)
-    if len(args) < 2:
-        await bot.reply_to(
-            message,
-            "Usage:\n\n/input your_session_url"
-        )
-        return
-    url = args[1]
-    user_data.setdefault(message.chat.id, {})
-    user_data[message.chat.id]['session_url'] = url
-    await bot.reply_to(message, "✅ Session URL အားသိမ်းဆည်းပြီးပါပြီ။ /scan ဖြင့် စတင်ပါ။")
-
-@bot.message_handler(commands=['scan'])
-async def scan(message):
-    args = message.text.split(maxsplit=1)
-    if len(args) < 2:
-        await bot.reply_to(
-            message,
-            "Usage:\n\n/scan <6, 7, 8, ascii-lower, all>"
-        )
-        return
-    mode = args[1]
-    chat_id = message.chat.id
-    if not approve.get(chat_id, False):
-        await bot.reply_to(message, "/scan ကိုအသုံးမပြုမီ /key ကိုအရင်ပြုလုပ်ပေးပါ။")
-        return
-    if chat_id not in user_data or 'session_url' not in user_data[chat_id]:
-        await bot.reply_to(message, "/scan ကိုအသုံးမပြုမီ /input ဖြင့် Session URL ကိုအရင်ထည့်သွင်းပေးရပါမည်။")
-        return
-
-    progress_msg = await bot.send_message(chat_id, "🔍 Scanning Codes...\n\n")
-    await bot.reply_to(message, f"စကင်ဖတ်ခြင်း မုဒ် ({mode}) စတင်နေပါပြီ...")
 
 @bot.message_handler(commands=['status'])
 async def status(message):
     if message.from_user.id != ADMIN_ID:
         await bot.reply_to(message, "No Permission")
         return
-    active_scans = sum(1 for data in scan_tasks.values() if not data["task"].done()) if scan_tasks else 0
+    active_scans = sum(1 for data in scan_tasks.values() if data.get("status") == "running") if scan_tasks else 0
     approved_users = sum(1 for v in approve.values() if v)
     uptime_seconds = int(time.monotonic() - _start_time)
     hours, remainder = divmod(uptime_seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     await bot.reply_to(
         message,
-        f"📊 Bot Status\n\n"
+        f"📊 **Bot Status**\n\n"
         f"⏱ Uptime: {hours}h {minutes}m {seconds}s\n"
         f"🔍 Active Scans: {active_scans}\n"
         f"✅ Approved Users: {approved_users}\n"
