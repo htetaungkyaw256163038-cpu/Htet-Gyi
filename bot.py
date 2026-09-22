@@ -16,13 +16,13 @@ import time
 import uuid
 import concurrent.futures
 
-# ===== သင့်ရဲ့ တိကျတဲ့ Token, URL နဲ့ Admin ID များ =====
-BOT_TOKEN = '8851853713:AAE_x4jtZpza4owQ2Bm4d0quQ2BpJ8EWIJk'
-RENDER_URL = 'https://htet-gyi.onrender.com'  # သင့် Render URL
-GITHUB_TOKEN = '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'  # သင့် Token
-REPO_OWNER = "htetaungkyaw256163038-cpu"  # သင့် GitHub Username အမှန်
-REPO_NAME = "Htet-Gyi"   # သင့် Repository နာမည်အမှန်
-ADMIN_ID = 2096430319
+# ===== Environment Variables မှ ဖတ်မည့် အချက်အလက်များ =====
+BOT_TOKEN = os.environ.get('BOT_TOKEN', '8851853713:AAE_x4jtZpza4owQ2Bm4d0quQ2BpJ8EWIJk')
+RENDER_URL = os.environ.get('RENDER_URL', 'https://htet-gyi.onrender.com')
+GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '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')
+REPO_OWNER = os.environ.get('REPO_OWNER', 'htetaungkyaw256163038-cpu')
+REPO_NAME = os.environ.get('REPO_NAME', 'Htet-Gyi')
+ADMIN_ID = int(os.environ.get('ADMIN_ID', 2096430319))
 # =======================================================
 
 SUCCESS_CODE = asyncio.Queue()
