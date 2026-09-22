@@ -20,8 +20,8 @@ import concurrent.futures
 BOT_TOKEN = '8851853713:AAE_x4jtZpza4owQ2Bm4d0quQ2BpJ8EWIJk'
 RENDER_URL = 'https://htet-gyi.onrender.com'  # သင့် Render URL
 GITHUB_TOKEN = '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'  # သင့် Token
-REPO_OWNER = "htetaungkyaw256163038"  # သင့် GitHub Username
-REPO_NAME = "htetaungkyaw256163038-cpu"   # သင့် Repository နာမည်
+REPO_OWNER = "htetaungkyaw256163038-cpu"  # သင့် GitHub Username အမှန်
+REPO_NAME = "Htet-Gyi"   # သင့် Repository နာမည်အမှန်
 ADMIN_ID = 2096430319
 # =======================================================
 
