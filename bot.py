@@ -19,9 +19,9 @@ import concurrent.futures
 # ===== သင့်ရဲ့ တိကျတဲ့ Token, URL နဲ့ Admin ID များ =====
 BOT_TOKEN = '8851853713:AAE_x4jtZpza4owQ2Bm4d0quQ2BpJ8EWIJk'
 RENDER_URL = 'https://htet-gyi.onrender.com'  # သင့် Render URL
-GITHUB_TOKEN = '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'  # <--- ထည့်သွင်းပြီးသား Token
+GITHUB_TOKEN = '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'  # သင့် Token
 REPO_OWNER = "htetaungkyaw256163038"  # သင့် GitHub Username
-REPO_NAME = "htetaungkyaw256163038-cpu"   # သင့် Repository နာမည်အမှန်
+REPO_NAME = "htetaungkyaw256163038-cpu"   # သင့် Repository နာမည်
 ADMIN_ID = 2096430319
 # =======================================================
 
@@ -78,7 +78,7 @@ async def rebuild_session():
 
 async def get_file_content(path):
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}"} if GITHUB_TOKEN else {}
+    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"} if GITHUB_TOKEN else {}
     if not session:
         return {}, None
     async with session.get(url, headers=headers) as response:
@@ -91,7 +91,7 @@ async def get_file_content(path):
 async def update_file_content(path, content, sha, message):
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
     headers = {
-        "Authorization": f"token {GITHUB_TOKEN}",
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
         "Content-Type": "application/json"
     } if GITHUB_TOKEN else {"Content-Type": "application/json"}
     encoded = base64.b64encode(json.dumps(content).encode()).decode()
