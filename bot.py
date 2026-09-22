@@ -2,19 +2,14 @@ print("===== BOT.PY LOADING =====", flush=True)
 import os
 import json
 import asyncio
-print("===== BASIC IMPORTS OK =====", flush=True)
 from datetime import datetime, timezone, timedelta
 from telebot.async_telebot import AsyncTeleBot
 from telebot.types import Message, Update
 import aiohttp
 from aiohttp import web
-print("===== TELEBOT & AIOHTTP OK =====", flush=True)
 import cv2
-print("===== CV2 OK =====", flush=True)
 import ddddocr
-print("===== DDDDOCR OK =====", flush=True)
 import numpy as np
-print("===== NUMPY OK =====", flush=True)
 import base64
 import random
 import string
@@ -32,13 +27,8 @@ REPO_NAME = os.environ.get('REPO_NAME', 'Htet-Gyi')
 ADMIN_ID = int(os.environ.get('ADMIN_ID', 2096430319))
 # =================================
 
-print(f"===== TOKEN: {BOT_TOKEN[:20]}... =====", flush=True)
-print(f"===== RENDER_URL: {RENDER_URL} =====", flush=True)
-
 SUCCESS_CODE = asyncio.Queue()
 bot = AsyncTeleBot(BOT_TOKEN)
-print("===== BOT OBJECT CREATED =====", flush=True)
-
 user_data = {}
 approve = {}
 scan_tasks = {}
@@ -94,10 +84,13 @@ async def get_file_content(path):
     if not session:
         return {}, None
     async with session.get(url, headers=headers) as response:
+        print(f"[GITHUB] GET {path} -> status={response.status}", flush=True)
         if response.status == 200:
             data = await response.json()
             content = base64.b64decode(data['content']).decode('utf-8')
-            return json.loads(content), data['sha']
+            parsed = json.loads(content)
+            print(f"[GITHUB] {path} content: {parsed}", flush=True)
+            return parsed, data['sha']
     return {}, None
 
 async def update_file_content(path, content, sha, message):
@@ -158,35 +151,44 @@ async def start(message):
 async def handle_key(message):
     global approve
     key = str(message.chat.id)
+    print(f"[KEY] ==========================================", flush=True)
     print(f"[KEY] User: {key}, Chat type: {message.chat.type}", flush=True)
 
     try:
         auth_list, sha = await get_file_content("auth_list.json")
+        print(f"[KEY] auth_list type: {type(auth_list)}", flush=True)
         print(f"[KEY] auth_list keys: {list(auth_list.keys())}", flush=True)
-        print(f"[KEY] Looking for: {key}", flush=True)
-        print(f"[KEY] Found: {key in auth_list}", flush=True)
+        print(f"[KEY] Looking for: '{key}'", flush=True)
+        found = key in auth_list
+        print(f"[KEY] Found: {found}", flush=True)
 
-        if key in auth_list:
+        if found:
+            print(f"[KEY] >>> ENTERING SUCCESS BLOCK <<<", flush=True)
             valid = check_key_expiration(auth_list[key])
             print(f"[KEY] Valid: {valid}", flush=True)
             if valid:
+                print(f"[KEY] >>> SENDING SUCCESS MESSAGE <<<", flush=True)
                 approve[message.chat.id] = True
                 user_data[message.chat.id] = {}
                 await bot.reply_to(
                     message,
                     "✅ Key မှန်ကန်ပါသည်။ /input ဖြင့် Session URL ထည့်ပါ။"
                 )
+                print(f"[KEY] >>> SUCCESS MESSAGE SENT <<<", flush=True)
             else:
+                print(f"[KEY] >>> SENDING EXPIRED MESSAGE <<<", flush=True)
                 approve[message.chat.id] = False
                 await bot.reply_to(
                     message,
                     "❌ Key Expired ဖြစ်နေပါသည်။"
                 )
         else:
+            print(f"[KEY] >>> ENTERING NOT-REGISTERED BLOCK <<<", flush=True)
             await bot.reply_to(
                 message,
                 "⚠️ သင်၏ key ကို registered မလုပ်ရသေးပါ။"
             )
+            print(f"[KEY] >>> NOT-REGISTERED MESSAGE SENT <<<", flush=True)
     except Exception as e:
         print(f"[KEY] ERROR: {e}", flush=True)
         import traceback
@@ -386,12 +388,11 @@ async def main():
     app.router.add_get("/", handle_root)
 
     port = int(os.environ.get("PORT", 10000))
-    print(f"===== STARTING WEB SERVER ON PORT {port} =====", flush=True)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-    print(f"===== WEB SERVER STARTED =====", flush=True)
+    print(f"===== WEB SERVER STARTED ON PORT {port} =====", flush=True)
 
     await bot.remove_webhook()
     print("===== OLD WEBHOOK REMOVED =====", flush=True)
@@ -400,7 +401,7 @@ async def main():
     for attempt in range(max_retries):
         try:
             await bot.set_webhook(url=f"{RENDER_URL}/{BOT_TOKEN}")
-            print(f"===== WEBHOOK SET: {RENDER_URL}/{BOT_TOKEN} =====", flush=True)
+            print(f"===== WEBHOOK SET SUCCESSFULLY =====", flush=True)
             break
         except Exception as e:
             print(f"===== WEBHOOK ATTEMPT {attempt + 1} FAILED: {e} =====", flush=True)
@@ -409,7 +410,7 @@ async def main():
             else:
                 print("===== COULD NOT SET WEBHOOK =====", flush=True)
 
-    print(f"===== BOT RUNNING IN WEBHOOK MODE ON PORT {port} =====", flush=True)
+    print(f"===== BOT RUNNING IN WEBHOOK MODE =====", flush=True)
 
     while True:
         await asyncio.sleep(3600)
