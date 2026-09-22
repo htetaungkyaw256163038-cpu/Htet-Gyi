@@ -8,8 +8,7 @@ bot = telebot.TeleBot(TOKEN)
 
 app = Flask(__name__)
 
-# Render မှ ပေးထားသော သင့် App ရဲ့ Public URL (သို့မဟုတ် Environment Variable မှ ယူရန်)
-# ဥပမာ: https://htet-gyi.onrender.com
+# Render မှ ပေးထားသော သင့် App ရဲ့ Public URL
 RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://your-app-name.onrender.com")
 PORT = int(os.environ.get("PORT", 10000))
 
@@ -30,6 +29,14 @@ def index():
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     bot.reply_to(message, "မင်္ဂလာပါ! Webhook စနစ်ဖြင့် Bot အလုပ်လုပ်နေပါပြီ။")
+
+@bot.message_handler(commands=['key'])
+def check_key(message):
+    bot.reply_to(message, "🟢 Proxy Status: ON (Key အချက်အလက်များ အသင့်ရှိပါပြီ)")
+
+@bot.message_handler(commands=['portal'])
+def handle_portal(message):
+    bot.reply_to(message, "Portal URL လက်ခံရရှိပါပြီ။ ကျေးဇူးပြု၍ VOUCHER Mode (6, 7, 8) ကို ရွေးချယ်ပါ။")
 
 if __name__ == "__main__":
     # ပထမဦးစွာ ယခင် Webhook များကို ဖျက်ပြီး အသစ်ပြန်ချိတ်ခြင်း
