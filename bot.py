@@ -1,20 +1,27 @@
+print("===== BOT.PY LOADING =====", flush=True)
 import os
 import json
 import asyncio
+print("===== BASIC IMPORTS OK =====", flush=True)
 from datetime import datetime, timezone, timedelta
 from telebot.async_telebot import AsyncTeleBot
 from telebot.types import Message, Update
 import aiohttp
 from aiohttp import web
+print("===== TELEBOT & AIOHTTP OK =====", flush=True)
 import cv2
+print("===== CV2 OK =====", flush=True)
 import ddddocr
+print("===== DDDDOCR OK =====", flush=True)
 import numpy as np
+print("===== NUMPY OK =====", flush=True)
 import base64
 import random
 import string
 import time
 import uuid
 import concurrent.futures
+print("===== ALL IMPORTS OK =====", flush=True)
 
 # ===== Environment Variables =====
 BOT_TOKEN = os.environ.get('BOT_TOKEN', '8851853713:AAE_x4jtZpza4owQ2Bm4d0quQ2BpJ8EWIJk')
@@ -25,8 +32,13 @@ REPO_NAME = os.environ.get('REPO_NAME', 'Htet-Gyi')
 ADMIN_ID = int(os.environ.get('ADMIN_ID', 2096430319))
 # =================================
 
+print(f"===== TOKEN: {BOT_TOKEN[:20]}... =====", flush=True)
+print(f"===== RENDER_URL: {RENDER_URL} =====", flush=True)
+
 SUCCESS_CODE = asyncio.Queue()
 bot = AsyncTeleBot(BOT_TOKEN)
+print("===== BOT OBJECT CREATED =====", flush=True)
+
 user_data = {}
 approve = {}
 scan_tasks = {}
@@ -56,7 +68,7 @@ async def handle_webhook(request):
         update = Update.de_json(body)
         await bot.process_new_updates([update])
     except Exception as e:
-        print(f"Webhook error: {e}")
+        print(f"Webhook error: {e}", flush=True)
     return web.Response(text="ok")
 
 async def handle_root(request):
@@ -117,7 +129,7 @@ def check_key_expiration(expiration_time):
             return datetime.now(timezone.utc) < exp_time
         return False
     except Exception as e:
-        print("Key parse error:", e)
+        print("Key parse error:", e, flush=True)
         return False
 
 def generate_expiry(plan):
@@ -139,23 +151,24 @@ def generate_expiry(plan):
 
 @bot.message_handler(commands=['start'])
 async def start(message):
+    print(f"[START] User: {message.chat.id}", flush=True)
     await bot.reply_to(message, "Bot စတင်ပါပြီ။ /key ဖြင့်စတင်ပါ။")
 
 @bot.message_handler(commands=['key'])
 async def handle_key(message):
     global approve
     key = str(message.chat.id)
-    print(f"[KEY] User: {key}, Chat type: {message.chat.type}")
+    print(f"[KEY] User: {key}, Chat type: {message.chat.type}", flush=True)
 
     try:
         auth_list, sha = await get_file_content("auth_list.json")
-        print(f"[KEY] auth_list keys: {list(auth_list.keys())}")
-        print(f"[KEY] Looking for: {key}")
-        print(f"[KEY] Found: {key in auth_list}")
+        print(f"[KEY] auth_list keys: {list(auth_list.keys())}", flush=True)
+        print(f"[KEY] Looking for: {key}", flush=True)
+        print(f"[KEY] Found: {key in auth_list}", flush=True)
 
         if key in auth_list:
             valid = check_key_expiration(auth_list[key])
-            print(f"[KEY] Valid: {valid}")
+            print(f"[KEY] Valid: {valid}", flush=True)
             if valid:
                 approve[message.chat.id] = True
                 user_data[message.chat.id] = {}
@@ -175,7 +188,7 @@ async def handle_key(message):
                 "⚠️ သင်၏ key ကို registered မလုပ်ရသေးပါ။"
             )
     except Exception as e:
-        print(f"[KEY] ERROR: {e}")
+        print(f"[KEY] ERROR: {e}", flush=True)
         import traceback
         traceback.print_exc()
         await bot.reply_to(message, f"Error: {e}")
@@ -222,7 +235,7 @@ async def listkeys(message):
         else:
             await bot.reply_to(message, text)
     except Exception as e:
-        print(f"Error at listkeys {e}")
+        print(f"Error at listkeys {e}", flush=True)
 
 @bot.message_handler(commands=['delkey'])
 async def delkey(message):
@@ -253,7 +266,7 @@ async def delkey(message):
             f"🗑️ Key Deleted\n\nUSER ID : {user_id}"
         )
     except Exception as e:
-        print(f"Error at delkey {e}")
+        print(f"Error at delkey {e}", flush=True)
 
 @bot.message_handler(commands=['genkey'])
 async def genkey(message):
@@ -293,7 +306,7 @@ async def genkey(message):
             f"EXPIRES : {expiry}"
         )
     except Exception as e:
-        print(f"Error at genkey {e}")
+        print(f"Error at genkey {e}", flush=True)
 
 @bot.message_handler(commands=['result'])
 async def handle_result(message):
@@ -364,41 +377,51 @@ async def status(message):
     )
 
 async def main():
+    print("===== MAIN() STARTED =====", flush=True)
     await rebuild_session()
+    print("===== SESSION REBUILT =====", flush=True)
 
     app = web.Application()
     app.router.add_post(f"/{BOT_TOKEN}", handle_webhook)
     app.router.add_get("/", handle_root)
 
     port = int(os.environ.get("PORT", 10000))
+    print(f"===== STARTING WEB SERVER ON PORT {port} =====", flush=True)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
+    print(f"===== WEB SERVER STARTED =====", flush=True)
 
     await bot.remove_webhook()
+    print("===== OLD WEBHOOK REMOVED =====", flush=True)
 
     max_retries = 3
     for attempt in range(max_retries):
         try:
             await bot.set_webhook(url=f"{RENDER_URL}/{BOT_TOKEN}")
-            print(f"Webhook set successfully to {RENDER_URL}/{BOT_TOKEN}")
+            print(f"===== WEBHOOK SET: {RENDER_URL}/{BOT_TOKEN} =====", flush=True)
             break
         except Exception as e:
-            print(f"Webhook setting attempt {attempt + 1} failed: {e}")
+            print(f"===== WEBHOOK ATTEMPT {attempt + 1} FAILED: {e} =====", flush=True)
             if attempt < max_retries - 1:
                 await asyncio.sleep(3)
             else:
-                print("Could not set webhook automatically.")
+                print("===== COULD NOT SET WEBHOOK =====", flush=True)
 
-    print(f"Bot is running in Webhook mode on port {port}...")
+    print(f"===== BOT RUNNING IN WEBHOOK MODE ON PORT {port} =====", flush=True)
 
     while True:
         await asyncio.sleep(3600)
 
 if __name__ == '__main__':
+    print("===== __MAIN__ BLOCK ENTERED =====", flush=True)
     try:
         asyncio.run(main())
+    except Exception as e:
+        print(f"===== FATAL ERROR: {e} =====", flush=True)
+        import traceback
+        traceback.print_exc()
     finally:
         if session and not session.closed:
             asyncio.run(session.close())
