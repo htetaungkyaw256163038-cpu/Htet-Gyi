@@ -19,9 +19,9 @@ import concurrent.futures
 # ===== သင့်ရဲ့ တိကျတဲ့ Token, URL နဲ့ Admin ID များ =====
 BOT_TOKEN = '8851853713:AAE_x4jtZpza4owQ2Bm4d0quQ2BpJ8EWIJk'
 RENDER_URL = 'https://htet-gyi.onrender.com'  # သင့် Render URL
-GITHUB_TOKEN = ''  # Public ဖြစ်ရင် အလွတ်ထားလို့ရသည်
-REPO_OWNER = "htetaungkyaw256163038"  # <--- သင့် GitHub Username အမှန်ကို ထည့်ပါ
-REPO_NAME = "htetaungkyaw256163038-c..."   # <--- သင့် Repository နာမည်အပြည့်အစုံကို ထည့်ပါ
+GITHUB_TOKEN = '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'  # <--- ထည့်သွင်းပြီးသား Token
+REPO_OWNER = "htetaungkyaw256163038"  # သင့် GitHub Username
+REPO_NAME = "htetaungkyaw256163038-cpu"   # သင့် Repository နာမည်အမှန်
 ADMIN_ID = 2096430319
 # =======================================================
 
