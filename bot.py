@@ -6,11 +6,12 @@ import ddddocr
 import numpy as np
 from datetime import datetime, timedelta, timezone
 
-BOT_TOKEN = '8304019935:AAEY0Pbppfax4samMTY4hlofbkImIk7LLT0'
-GITHUB_TOKEN = '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'
+BOT_TOKEN = '8304019935:AAGvHTXAaVsLyfYI6xZZydlyT2QY2CJCEeg'
+GITHUB_TOKEN = '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'
 REPO_OWNER = "htetaungkyaw256163038-cpu"
 REPO_NAME = "Htet-Gyi"
 ADMIN_ID = "2096430319"
+
 bot = AsyncTeleBot(BOT_TOKEN)
 _telegram_send = bot.send_message
 _telegram_reply = bot.reply_to
@@ -19,7 +20,9 @@ user_data = {}
 redeem_access = {}
 redeem_lock = asyncio.Lock()
 scan_tasks = {}
-success_messages = success_textschasuccessimited_messages = {}
+success_messages = {}
+success_texts = {}
+limited_messages = {}
 limited_texts = {}
 captcha_state = {}
 retry_counts = {}
@@ -301,7 +304,6 @@ async def listredeem(message):
         else:
             await safe_send_message(message.chat.id, chunk)
 
-
 async def check_session_url(session_url):
     headers = {
         'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -329,4 +331,5 @@ async def check_session_url(session_url):
                 return True
             return False
     except Exception as e:
-        print(f"[check_session_url] er
+        print(f"[check_session_url] error: {e}")
+        return False
