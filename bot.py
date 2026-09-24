@@ -6,7 +6,7 @@ import ddddocr
 import numpy as np
 from datetime import datetime, timedelta, timezone
 
-BOT_TOKEN = '8304019935:AAGvHTXAaVsLyfYI6xZZydlyT2QY2CJCEeg'
+BOT_TOKEN = '8803846802:AAGZC1XT7QKCUpAnU_zY5s-SvPCTq4yINT0'
 GITHUB_TOKEN = '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'
 REPO_OWNER = "htetaungkyaw256163038-cpu"
 REPO_NAME = "Htet-Gyi"
